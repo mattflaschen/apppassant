@@ -56,6 +56,8 @@
 						<ul class="nav">
 							<li class="active"><a href="#">Home</a></li>
 							<li><a href="https://alpha.app.net/mattflaschen">Contact</a></li>
+							<li><a href="https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=AWBV8X4WCB69J&lc=US&item_number=App%20Passant&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_LG%2egif%3aNonHosted">Donate</a>
+							</li>
 						</ul>
 					</div><!--/.nav-collapse -->
 				</div>
@@ -80,7 +82,7 @@
 		<div class="modal hide fade" id="postGameModal" tabindex="-1" role="dialog" aria-labelledby="postGameLabel" aria-hidden="true" data-keyboard="false">
 			<div class="modal-header">
 				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-				<h3 id="postGameLabel" data-dismiss="modal">Post Game</h3>
+				<h3 id="postGameLabel">Post Game</h3>
 			</div>
 			<div class="modal-body">
 				<textarea id="postModalPgn" placeholder="Portable Game Notation"></textarea>
@@ -93,7 +95,7 @@
 				<div id="postModalBoard"></div>
 			</div>
 			<div class="modal-footer">
-				<button id="postGameBtn" data-loading-text="Posting" class="btn btn-primary" autocomplete="off">Post</button>
+				<button id="postGameBtn" data-loading-text="Posting" class="btn btn-primary" data-dismiss="modal" autocomplete="off">Post</button>
 				<button id="previewGameBtn" class="btn" autocomplete="off">Preview</button>
 
 			</div>
