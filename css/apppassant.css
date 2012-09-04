@@ -12,3 +12,21 @@ body
 {
     padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
 }
+
+.gamePost
+{
+    text-align: center;
+}
+
+.controls
+{
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.controls a
+{
+    margin-left: 2px;
+    margin-right: 2px;
+
+}
