@@ -25,15 +25,53 @@
 
 	var boardCounter = 0;
 
-	function renderLastMove($boardHolder, pgn)
+	function renderGamePost($boardControlHolder, html, pgn)
 	{
-		// Could maybe use post ID, but this is more futureproof
-		if($boardHolder.prop('id') == '')
+		$boardControlHolder.addClass('gamePost');
+		var $boardHolder = $('<div />');
+		$boardHolder.prop('id', 'board' + (boardCounter++));
+
+		var beginning = $('<i />', {'class': 'icon-backward', title: 'Beginning'});
+
+		var previous =  $('<i />', {'class': 'icon-step-backward', title: 'Previous'});
+
+		var forward =  $('<i />', {'class': 'icon-step-forward', title: 'Next'});
+
+		function gotoEnd()
 		{
-			$boardHolder.prop('id', 'board' + (boardCounter++));
+			board.transitionTo(board.game.transitions.length);
 		}
-		var board = $boardHolder.html('').chess({pgn: pgn});
-		board.transitionTo(board.game.transitions.length);
+
+		var end = $('<i />', {'class': 'icon-forward', title: 'End'});
+
+		var controls = [beginning, previous, forward, end];
+		var handlers =
+		[
+			function()
+			{
+				board.transitionTo(0);
+			},
+			function()
+			{
+				board.transitionBackward();
+			},
+			function()
+			{
+				board.transitionForward();
+			},
+			gotoEnd
+		];
+
+		for(var i = 0; i < controls.length; i++)
+		{
+			controls[i] = $('<a />', {href: '#', 'class': 'btn'}).append(controls[i]).click(handlers[i]);
+		}
+		var $controlHolder = $('<div />', {'class': 'controls'}).append(controls);
+
+		var $msg = $('<p/>', {html: html});
+		$boardControlHolder.html('').append($boardHolder, $controlHolder, $msg, $('<hr />'));
+		var board = $boardHolder.chess({pgn: pgn});
+		gotoEnd();
 	}
 
 	$(function()
@@ -88,12 +126,8 @@
 		fetchPosts(0, function(post, annotation)
 		{
 			var $post = $('<div/>');
-			var $board = $('<div/>');
-			var $msg = $('<p/>', { html: post.html });
-			var $border = $('<hr/>');
-			$post.append($board, $msg, $border);
 			$holder.append($post);
-			renderLastMove($board, annotation.value.pgn);
+			renderGamePost($post, post.html, annotation.value.pgn);
 		}, true);
 
 		$('body').removeClass('unauthorized').addClass('authorized');
@@ -111,7 +145,7 @@
 
 		$('#previewGameBtn').click(function()
 		{
-			renderLastMove($('#postModalBoard'), $('#postModalPgn').val());
+			renderGamePost($('#postModalBoard'), $('#postModalMsg').val(), $('#postModalPgn').val());
 		});
 
 		$('#postGameBtn').click(function()
