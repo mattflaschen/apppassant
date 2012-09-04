@@ -97,6 +97,14 @@
 			no_globals: true
 		});
 
+		$('#throbber').ajaxStart(function()
+		{
+			$(this).show();
+		}).ajaxStop(function()
+		{
+			$(this).hide();
+		});
+
 		// https://github.com/appdotnet/api-spec/issues/154, please
 		function fetchPosts(postsFetched, callback, isMore, minId)
 		{
