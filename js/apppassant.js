@@ -69,6 +69,20 @@
 		var $controlHolder = $('<div />', {'class': 'controls'}).append(controls);
 
 		var $msg = $('<p/>', {html: html});
+		$('span[itemprop=hashtag]').each(function()
+		{
+			var $this = $(this);
+			var hashtag = $this.data('hashtag-name');
+			$this.html($('<a />', {href: 'http://appeio.com/?tag=' + hashtag, text: $this.text()}));
+		});
+
+		$('span[itemprop=mention]').each(function()
+		{
+			var $this = $(this);
+			var mention = $this.data('mention-name');
+			$this.html($('<a />', {href: 'http://appeio.com/' + mention, text: $this.text()}));
+		});
+
 		$boardControlHolder.html('').append($boardHolder, $controlHolder, $msg, $('<hr />'));
 		var board = $boardHolder.chess({pgn: pgn});
 		gotoEnd();
@@ -95,6 +109,14 @@
 			access_token: token,
 			debug: true,
 			no_globals: true
+		});
+
+		$('#throbber').ajaxStart(function()
+		{
+			$(this).show();
+		}).ajaxStop(function()
+		{
+			$(this).hide();
 		});
 
 		// https://github.com/appdotnet/api-spec/issues/154, please
