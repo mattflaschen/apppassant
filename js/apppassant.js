@@ -1,6 +1,6 @@
 (function()
 {
-	var state = { }, api = APPDOTNET;
+	var api = APPDOTNET;
 
 	// Standard one coming
 	var vendorNamespace = 'net.app.mattflaschen.chess';
@@ -102,13 +102,23 @@
 			return;
 		}
 
-		state.token = token;
 		$.cookie('token', token);
+
+		var authenticatedUsername, authenticatedName;
+
 		api.init(
 		{
 			access_token: token,
 			debug: true,
 			no_globals: true
+		});
+
+		api.users().done(function(env)
+		{
+			authenticatedUsername = env.data.username;
+			authenticatedName = env.data.name;
+
+			$('body').removeClass('unauthorized').addClass('authorized');
 		});
 
 		$('#throbber').ajaxStart(function()
@@ -151,8 +161,6 @@
 			$holder.append($post);
 			renderGamePost($post, post.html, annotation.value.pgn);
 		}, true);
-
-		$('body').removeClass('unauthorized').addClass('authorized');
 
 		$('.modal').on('show', function()
 		{
