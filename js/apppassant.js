@@ -69,14 +69,14 @@
 		var $controlHolder = $('<div />', {'class': 'controls'}).append(controls);
 
 		var $msg = $('<p/>', {html: html});
-		$('span[itemprop=hashtag]').each(function()
+		$('span[itemprop=hashtag]', $msg).each(function()
 		{
 			var $this = $(this);
 			var hashtag = $this.data('hashtag-name');
 			$this.html($('<a />', {href: 'http://appeio.com/?tag=' + hashtag, text: $this.text()}));
 		});
 
-		$('span[itemprop=mention]').each(function()
+		$('span[itemprop=mention]', $msg).each(function()
 		{
 			var $this = $(this);
 			var mention = $this.data('mention-name');
