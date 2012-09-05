@@ -134,7 +134,7 @@
 		{
 			if(postsFetched < 2000 && isMore)
 			{
-				api.stream({include_annotations: 1, count: 200, before_id: minId}).done(function(env)
+				api.stream({include_annotations: 1, include_directed_posts: 1, count: 200, before_id: minId}).done(function(env)
 				{
 					console.log(env);
 					postsFetched += env.data.length;
