@@ -126,7 +126,9 @@
 			$this.html($('<a />', {href: 'http://appeio.com/' + mention, text: $this.text()}));
 		});
 
-		$boardControlHolder.html('').append($boardHolder, $controlHolder, $annotation, $poster, $msg, $('<hr />'));
+		var $pgn = $('<p/>', {'class': 'pgn', text: pgn});
+
+		$boardControlHolder.html('').append($boardHolder, $controlHolder, $annotation, $pgn, $poster, $msg, $('<hr />'));
 		var board = $boardHolder.chess({pgn: pgn});
 		gotoEnd();
 	}
