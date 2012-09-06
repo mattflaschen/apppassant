@@ -25,7 +25,7 @@
 
 	var boardCounter = 0;
 
-	function renderGamePost($boardControlHolder, html, pgn)
+	function renderGamePost($boardControlHolder, posterUsername, html, pgn)
 	{
 		$boardControlHolder.addClass('gamePost');
 		var $boardHolder = $('<div />');
@@ -107,6 +107,10 @@
 		});
 		var $controlHolder = $('<div />', {'class': 'controls'}).append(controls);
 
+		var $poster = $('<span />', {'class': 'poster'});
+		var $posterLink = $('<a />', {href: 'http://appeio.com/' + posterUsername, text: '@' + posterUsername + ':'});
+		$poster.append($posterLink);
+
 		var $msg = $('<p/>', {html: html});
 		$('span[itemprop=hashtag]', $msg).each(function()
 		{
@@ -122,7 +126,7 @@
 			$this.html($('<a />', {href: 'http://appeio.com/' + mention, text: $this.text()}));
 		});
 
-		$boardControlHolder.html('').append($boardHolder, $controlHolder, $annotation, $msg, $('<hr />'));
+		$boardControlHolder.html('').append($boardHolder, $controlHolder, $annotation, $poster, $msg, $('<hr />'));
 		var board = $boardHolder.chess({pgn: pgn});
 		gotoEnd();
 	}
@@ -197,7 +201,7 @@
 		{
 			var $post = $('<div/>');
 			$holder.append($post);
-			renderGamePost($post, post.html, annotation.value.pgn);
+			renderGamePost($post, post.user.username, post.html, annotation.value.pgn);
 		}, true);
 
 		$('.modal').on('show', function()
@@ -213,7 +217,7 @@
 
 		$('#previewGameBtn').click(function()
 		{
-			renderGamePost($('#postModalBoard'), $('#postModalMsg').val(), $('#postModalPgn').val());
+			renderGamePost($('#postModalBoard'), authenticatedUsername, $('#postModalMsg').val(), $('#postModalPgn').val());
 		});
 
 		$('#postGameBtn').click(function()

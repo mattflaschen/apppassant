@@ -36,6 +36,12 @@ body
     background-color: #E0CD96;
 }
 
+.poster a
+{
+    color: black;
+    font-weight: bold;
+}
+
 #postGameModal
 {
     top: 35%;
