@@ -30,3 +30,18 @@ body
     margin-right: 2px;
 
 }
+
+.annotation
+{
+    background-color: #E0CD96;
+}
+
+#postGameModal
+{
+    top: 35%;
+}
+
+#postGameModal .modal-body
+{
+    max-height: 600px;
+}

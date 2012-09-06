@@ -1,6 +1,6 @@
 (function()
 {
-	var state = { }, api = APPDOTNET;
+	var api = APPDOTNET;
 
 	// Standard one coming
 	var vendorNamespace = 'net.app.mattflaschen.chess';
@@ -31,65 +31,112 @@
 		var $boardHolder = $('<div />');
 		$boardHolder.prop('id', 'board' + (boardCounter++));
 
-		var beginning = $('<i />', {'class': 'icon-backward', title: 'Beginning'});
+		var beginning =
+		{
+			'class': 'icon-backward',
+			title: 'Beginning',
+			handler: function()
+			{
+				board.transitionTo(0);
+				updateAnnotation();
+			}
+		};
 
-		var previous =  $('<i />', {'class': 'icon-step-backward', title: 'Previous'});
+		var previous =
+		{
+			'class': 'icon-step-backward',
+			title: 'Previous',
+			handler: function()
+			{
+				board.transitionBackward();
+				updateAnnotation();
+			}
+		};
 
-		var forward =  $('<i />', {'class': 'icon-step-forward', title: 'Next'});
+		var forward =
+		{
+			'class': 'icon-step-forward',
+			title: 'Next',
+			handler: function()
+			{
+				board.transitionForward();
+				updateAnnotation();
+			}
+		};
+
+		var $annotation = $('<p />', {'class': 'annotation'});
+		function updateAnnotation()
+		{
+			$annotation.text(board.annotation());
+		};
 
 		function gotoEnd()
 		{
 			board.transitionTo(board.game.transitions.length);
+			updateAnnotation();
 		}
 
-		var end = $('<i />', {'class': 'icon-forward', title: 'End'});
-
-		var controls = [beginning, previous, forward, end];
-		var handlers =
-		[
-			function()
-			{
-				board.transitionTo(0);
-			},
-			function()
-			{
-				board.transitionBackward();
-			},
-			function()
-			{
-				board.transitionForward();
-			},
-			gotoEnd
-		];
-
-		for(var i = 0; i < controls.length; i++)
+		var end =
 		{
-			controls[i] = $('<a />', {href: '#', 'class': 'btn'}).append(controls[i]).click(handlers[i]);
-		}
+			'class': 'icon-forward',
+			title: 'End',
+			handler: gotoEnd
+		};
+
+		var flip =
+		{
+			'class': 'icon-resize-vertical',
+			title: 'Flip',
+			handler: function()
+			{
+				board.flipBoard();
+			}
+		};
+
+		var controlSpecs = [beginning, previous, forward, end, flip];
+
+		var controls = $.map(controlSpecs, function(spec)
+		{
+			var icon = $('<i />', {'class': spec['class']});
+			var handler = spec.handler;
+			return $('<a />', {href: '#', 'class': 'btn', title: spec.title}).append(icon).click(function(e)
+			{
+				handler();
+				e.preventDefault();
+			});
+		});
 		var $controlHolder = $('<div />', {'class': 'controls'}).append(controls);
 
 		var $msg = $('<p/>', {html: html});
-		$('span[itemprop=hashtag]').each(function()
+		$('span[itemprop=hashtag]', $msg).each(function()
 		{
 			var $this = $(this);
 			var hashtag = $this.data('hashtag-name');
 			$this.html($('<a />', {href: 'http://appeio.com/?tag=' + hashtag, text: $this.text()}));
 		});
 
-		$('span[itemprop=mention]').each(function()
+		$('span[itemprop=mention]', $msg).each(function()
 		{
 			var $this = $(this);
 			var mention = $this.data('mention-name');
 			$this.html($('<a />', {href: 'http://appeio.com/' + mention, text: $this.text()}));
 		});
 
-		$boardControlHolder.html('').append($boardHolder, $controlHolder, $msg, $('<hr />'));
+		$boardControlHolder.html('').append($boardHolder, $controlHolder, $annotation, $msg, $('<hr />'));
 		var board = $boardHolder.chess({pgn: pgn});
 		gotoEnd();
 	}
 
 	$(function()
 	{
+		$('#throbber').ajaxStart(function()
+		{
+			$(this).show();
+		}).ajaxStop(function()
+		{
+			$(this).hide();
+		});
+
 		var token = getToken();
 		if(!token)
 		{
@@ -102,8 +149,11 @@
 			return;
 		}
 
-		state.token = token;
+		$('body').removeClass('unauthorized').addClass('authorized');
 		$.cookie('token', token);
+
+		var authenticatedUsername, authenticatedName;
+
 		api.init(
 		{
 			access_token: token,
@@ -111,12 +161,10 @@
 			no_globals: true
 		});
 
-		$('#throbber').ajaxStart(function()
+		api.users().done(function(env)
 		{
-			$(this).show();
-		}).ajaxStop(function()
-		{
-			$(this).hide();
+			authenticatedUsername = env.data.username;
+			authenticatedName = env.data.name;
 		});
 
 		// https://github.com/appdotnet/api-spec/issues/154, please
@@ -124,7 +172,7 @@
 		{
 			if(postsFetched < 2000 && isMore)
 			{
-				api.stream({include_annotations: 1, count: 200, before_id: minId}).done(function(env)
+				api.stream({include_annotations: 1, include_directed_posts: 1, count: 200, before_id: minId}).done(function(env)
 				{
 					console.log(env);
 					postsFetched += env.data.length;
@@ -151,8 +199,6 @@
 			$holder.append($post);
 			renderGamePost($post, post.html, annotation.value.pgn);
 		}, true);
-
-		$('body').removeClass('unauthorized').addClass('authorized');
 
 		$('.modal').on('show', function()
 		{
