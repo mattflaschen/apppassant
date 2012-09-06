@@ -31,41 +31,80 @@
 		var $boardHolder = $('<div />');
 		$boardHolder.prop('id', 'board' + (boardCounter++));
 
-		var beginning = $('<i />', {'class': 'icon-backward', title: 'Beginning'});
+		var beginning =
+		{
+			'class': 'icon-backward',
+			title: 'Beginning',
+			handler: function()
+			{
+				board.transitionTo(0);
+				updateAnnotation();
+			}
+		};
 
-		var previous =  $('<i />', {'class': 'icon-step-backward', title: 'Previous'});
+		var previous =
+		{
+			'class': 'icon-step-backward',
+			title: 'Previous',
+			handler: function()
+			{
+				board.transitionBackward();
+				updateAnnotation();
+			}
+		};
 
-		var forward =  $('<i />', {'class': 'icon-step-forward', title: 'Next'});
+		var forward =
+		{
+			'class': 'icon-step-forward',
+			title: 'Next',
+			handler: function()
+			{
+				board.transitionForward();
+				updateAnnotation();
+			}
+		};
+
+		var $annotation = $('<p />', {'class': 'annotation'});
+		function updateAnnotation()
+		{
+			$annotation.text(board.annotation());
+		};
 
 		function gotoEnd()
 		{
 			board.transitionTo(board.game.transitions.length);
+			updateAnnotation();
 		}
 
-		var end = $('<i />', {'class': 'icon-forward', title: 'End'});
-
-		var controls = [beginning, previous, forward, end];
-		var handlers =
-		[
-			function()
-			{
-				board.transitionTo(0);
-			},
-			function()
-			{
-				board.transitionBackward();
-			},
-			function()
-			{
-				board.transitionForward();
-			},
-			gotoEnd
-		];
-
-		for(var i = 0; i < controls.length; i++)
+		var end =
 		{
-			controls[i] = $('<a />', {href: '#', 'class': 'btn'}).append(controls[i]).click(handlers[i]);
-		}
+			'class': 'icon-forward',
+			title: 'End',
+			handler: gotoEnd
+		};
+
+		var flip =
+		{
+			'class': 'icon-resize-vertical',
+			title: 'Flip',
+			handler: function()
+			{
+				board.flipBoard();
+			}
+		};
+
+		var controlSpecs = [beginning, previous, forward, end, flip];
+
+		var controls = $.map(controlSpecs, function(spec)
+		{
+			var icon = $('<i />', {'class': spec['class']});
+			var handler = spec.handler;
+			return $('<a />', {href: '#', 'class': 'btn', title: spec.title}).append(icon).click(function(e)
+			{
+				handler();
+				e.preventDefault();
+			});
+		});
 		var $controlHolder = $('<div />', {'class': 'controls'}).append(controls);
 
 		var $msg = $('<p/>', {html: html});
@@ -83,7 +122,7 @@
 			$this.html($('<a />', {href: 'http://appeio.com/' + mention, text: $this.text()}));
 		});
 
-		$boardControlHolder.html('').append($boardHolder, $controlHolder, $msg, $('<hr />'));
+		$boardControlHolder.html('').append($boardHolder, $controlHolder, $annotation, $msg, $('<hr />'));
 		var board = $boardHolder.chess({pgn: pgn});
 		gotoEnd();
 	}
