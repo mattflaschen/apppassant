@@ -129,6 +129,14 @@
 
 	$(function()
 	{
+		$('#throbber').ajaxStart(function()
+		{
+			$(this).show();
+		}).ajaxStop(function()
+		{
+			$(this).hide();
+		});
+
 		var token = getToken();
 		if(!token)
 		{
@@ -141,6 +149,7 @@
 			return;
 		}
 
+		$('body').removeClass('unauthorized').addClass('authorized');
 		$.cookie('token', token);
 
 		var authenticatedUsername, authenticatedName;
@@ -156,16 +165,6 @@
 		{
 			authenticatedUsername = env.data.username;
 			authenticatedName = env.data.name;
-
-			$('body').removeClass('unauthorized').addClass('authorized');
-		});
-
-		$('#throbber').ajaxStart(function()
-		{
-			$(this).show();
-		}).ajaxStop(function()
-		{
-			$(this).hide();
 		});
 
 		// https://github.com/appdotnet/api-spec/issues/154, please
