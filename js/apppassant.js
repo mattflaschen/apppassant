@@ -1,5 +1,14 @@
 (function()
 {
+	if(typeof console == 'undefined')
+	{
+		console = { };
+	}
+	if(typeof console.log != 'function')
+	{
+		console.log = $.noop;
+	}
+
 	var api = APPDOTNET;
 
 	// Standard one coming
@@ -203,7 +212,17 @@
 		{
 			var $post = $('<div/>');
 			$holder.append($post);
-			renderGamePost($post, post.user.username, post.html, annotation.value.pgn);
+			try
+			{
+				renderGamePost($post, post.user.username, post.html, annotation.value.pgn);
+			}
+			catch(e)
+			{
+				console.log('Error rendering game from stream: ');
+				console.log(e);
+				// We add then remove on error because board must be in the DOM when board is rendered due to internal jchess quirk.
+				$post.remove();
+			}
 		}, true);
 
 		$('.modal').on('show', function()
@@ -217,9 +236,20 @@
 		});
 
 
+		var $postModalError = $('#postModalError');
 		$('#previewGameBtn').click(function()
 		{
-			renderGamePost($('#postModalBoard'), authenticatedUsername, $('#postModalMsg').val(), $('#postModalPgn').val());
+			$postModalError.hide().text('');
+			try
+			{
+				renderGamePost($('#postModalBoard'), authenticatedUsername, $('#postModalMsg').val(), $('#postModalPgn').val());
+			}
+			catch(e)
+			{
+				console.log('Error rendering entered PGN: ');
+				console.log(e);
+				$postModalError.text('We were unable to display the game from your PGN.  Please try again.').show();
+			}
 		});
 
 		$('#postGameBtn').click(function()
