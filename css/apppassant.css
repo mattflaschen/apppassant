@@ -51,3 +51,9 @@ body
 {
     max-height: 600px;
 }
+
+/* Documented in Bootstrap, but not in CDN version yet */
+.text-error
+{
+    color: #B94A48;
+}
