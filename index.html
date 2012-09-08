@@ -86,16 +86,16 @@
 				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
 				<h3 id="postGameLabel">Post Game</h3>
 			</div>
-			<div class="modal-body">
-				<textarea id="postModalPgn" placeholder="Portable Game Notation"></textarea>
-				
-				<textarea id="postModalMsg" placeholder="Regular Message"></textarea>
+			<form class="modal-body modal-form">
+				<textarea id="postModalPgn" class="required" placeholder="Portable Game Notation"></textarea>
+
+				<textarea id="postModalMsg" class="required adn-message" placeholder="Regular Message"></textarea>
 
 				<label>Currently being played? 
 					<input id="postModalBeingPlayed" type="checkbox">
 				</label>
 				<div id="postModalBoard"></div>
-			</div>
+			</form>
 			<div class="modal-footer">
 				<p id="postModalError" class="text-error hide"></p>
 				<button id="postGameBtn" data-loading-text="Posting" class="btn btn-primary" data-dismiss="modal" autocomplete="off">Post</button>
