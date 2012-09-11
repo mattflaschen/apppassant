@@ -13,7 +13,7 @@ body
     padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
 }
 
-.gamePost
+.game-post
 {
     text-align: center;
 }
@@ -50,6 +50,38 @@ body
 #postGameModal .modal-body
 {
     max-height: 600px;
+}
+
+#mainTabs
+{
+    margin-top: 10px;
+}
+
+#createChallengePieces img
+{
+    width: 150px;
+    height: 150px
+}
+
+#createChallengeModal .modal-body textarea
+{
+    width: 349px;
+}
+
+#createChallengePieces a
+{
+    margin-right: 3px;
+    margin-bottom: 5px;
+}
+
+#createChallengeModal input
+{
+    width: 226px;
+}
+
+#createChallengeOpponent
+{
+    margin-left: -2px;
 }
 
 /* Documented in Bootstrap, but not in CDN version yet */

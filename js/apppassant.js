@@ -11,8 +11,11 @@
 
 	var api = APPDOTNET;
 
-	// Standard one coming
-	var vendorNamespace = 'net.app.mattflaschen.chess';
+	var VENDOR_NAMESPACE = 'net.app.mattflaschen.chess';
+	var STANDARD_NAMESPACE = 'games.chess';
+
+	// Version when writing/posting annotations
+	var WRITE_VERSION = "1.0";
 
 	jQuery.support.cors = true;
 
@@ -36,7 +39,7 @@
 
 	function renderGamePost($boardControlHolder, posterUsername, html, pgn)
 	{
-		$boardControlHolder.addClass('gamePost');
+		$boardControlHolder.addClass('game-post');
 		var $boardHolder = $('<div />');
 		$boardHolder.prop('id', 'board' + (boardCounter++));
 
@@ -137,9 +140,78 @@
 
 		var $pgn = $('<p/>', {'class': 'pgn', text: pgn});
 
-		$boardControlHolder.html('').append($boardHolder, $controlHolder, $annotation, $pgn, $poster, $msg, $('<hr />'));
+		$boardControlHolder.empty().append($boardHolder, $controlHolder, $annotation, $pgn, $poster, $msg, $('<hr />'));
 		var board = $boardHolder.chess({pgn: pgn});
 		gotoEnd();
+	}
+
+	// Preview when posting PGN
+	function previewGame($errorDisplay, $board, username, $msg, pgn)
+	{
+		$errorDisplay.hide().text('');
+		try
+		{
+			renderGamePost($board, username, $msg.val(), pgn);
+		}
+		catch(e)
+		{
+			console.log('Error rendering entered PGN: ');
+			console.log(e);
+			$errorDisplay.text('We were unable to display the game from your PGN.  Please try again.').show();
+		}
+	}
+
+	// https://github.com/appdotnet/api-spec/issues/154, please
+	function fetchPosts(fetchFunction, postsFetched, foundCallback, isMore, filterPredicate, minId)
+	{
+		if(postsFetched < 2000 && isMore)
+		{
+			fetchFunction({include_annotations: 1, include_directed_posts: 1, count: 200, before_id: minId}).done(function(env)
+			{
+				console.log(env);
+				postsFetched += env.data.length;
+				for(var i = 0; i < env.data.length; i++)
+				{
+					for(var j = 0; j < env.data[i].annotations.length; j++)
+					{
+						if((env.data[i].annotations[j].type == VENDOR_NAMESPACE || env.data[i].annotations[j].type == STANDARD_NAMESPACE) && filterPredicate(env.data[i], env.data[i].annotations[j]))
+						{
+							foundCallback(env.data[i], env.data[i].annotations[j]);
+							break; // Ignore double (or more) chess annotation on same post.
+						}
+					}
+				}
+				fetchPosts(fetchFunction, postsFetched, foundCallback, env.meta.more, filterPredicate, env.meta.min_id);
+			});
+		}
+	}
+
+	function fetchPostsToList($holder, fetchFunction, filterPredicate)
+	{
+		if(filterPredicate === undefined)
+		{
+			filterPredicate = function()
+			{
+				return true;
+			};
+		}
+
+		fetchPosts(fetchFunction, 0, function(post, annotation)
+		{
+			var $post = $('<div/>');
+			$holder.append($post);
+			try
+			{
+				renderGamePost($post, post.user.username, post.html, annotation.value.pgn);
+			}
+			catch(e)
+			{
+				console.log('Error rendering game from stream: ');
+				console.log(e);
+				// We add then remove on error because board must be in the DOM when board is rendered due to internal jchess quirk.
+				$post.remove();
+			}
+		}, true, filterPredicate);
 	}
 
 	$(function()
@@ -182,93 +254,139 @@
 			authenticatedName = env.data.name;
 		});
 
-		// https://github.com/appdotnet/api-spec/issues/154, please
-		function fetchPosts(postsFetched, callback, isMore, minId)
-		{
-			if(postsFetched < 2000 && isMore)
-			{
-				api.stream({include_annotations: 1, include_directed_posts: 1, count: 200, before_id: minId}).done(function(env)
-				{
-					console.log(env);
-					postsFetched += env.data.length;
-					for(var i = 0; i < env.data.length; i++)
-					{
-						for(var j = 0; j < env.data[i].annotations.length; j++)
-						{
-							if(env.data[i].annotations[j].type == vendorNamespace)
-							{
-								callback(env.data[i], env.data[i].annotations[j]);
-							}
-						}
-					}
-					fetchPosts(postsFetched, callback, env.meta.more, env.meta.min_id);
-				});
-			}
-		}
+		$('.adn-message').attr('maxlength', 256);
 
-		var $holder = $('#gamesFromStream');
-
-		fetchPosts(0, function(post, annotation)
+		fetchPostsToList($('#streamList'), function(o)
 		{
-			var $post = $('<div/>');
-			$holder.append($post);
-			try
-			{
-				renderGamePost($post, post.user.username, post.html, annotation.value.pgn);
-			}
-			catch(e)
-			{
-				console.log('Error rendering game from stream: ');
-				console.log(e);
-				// We add then remove on error because board must be in the DOM when board is rendered due to internal jchess quirk.
-				$post.remove();
-			}
-		}, true);
+			return api.stream(o);
+		});
 
 		$('.modal').on('show', function()
 		{
-			$(':input', this).val('');
+			$('form', this)[0].reset();
+			$('.game-post', this).empty();
 		});
 
-		$('#postGameModal').on('show', function()
-		{
-			$('#postModalBoard').html('');
-		});
-
-
-		var $postModalError = $('#postModalError');
 		$('#previewGameBtn').click(function()
 		{
-			$postModalError.hide().text('');
-			try
-			{
-				renderGamePost($('#postModalBoard'), authenticatedUsername, $('#postModalMsg').val(), $('#postModalPgn').val());
-			}
-			catch(e)
-			{
-				console.log('Error rendering entered PGN: ');
-				console.log(e);
-				$postModalError.text('We were unable to display the game from your PGN.  Please try again.').show();
-			}
+			previewGame($('#postModalError'), $('#postModalBoard'), authenticatedUsername, $('#postModalMsg'), $('#postModalPgn').val());
 		});
 
 		$('#postGameBtn').click(function()
 		{
-			var btn = this;
-			$(btn).button('loading');
-			api.posts($('#postModalMsg').val(), null, true, [
-			    {
-				    type: vendorNamespace,
-				    value:
-				    {
-				        is_active: $('#postModalBeingPlayed').is(':checked'),
-					pgn: $('#postModalPgn').val()
-				    }
-			    }
+			var $btn = $(this);
+			$btn.button('loading');
+			api.posts($('#postModalMsg').val(), null, true,
+			[
+				{
+					type: STANDARD_NAMESPACE,
+					value:
+					{
+						version: WRITE_VERSION,
+						is_active: $('#postModalBeingPlayed').is(':checked'),
+						pgn: $('#postModalPgn').val()
+					}
+				}
 			]).always(function()
 			{
-				$(btn).button('reset');
+				$btn.button('reset');
+			});
+		});
 
+		// Is this a valid challenge of the authenticated user?
+		function isValidChallenge(post, annotation)
+		{
+			annotation = annotation.value;
+			if(!annotation.version || annotation.result)
+			{
+				// If it's the old schema, or already has a result, even *, short-circuit.
+				return false;
+			}
+			var poster = post.user.username;
+			var userInChallenge = (annotation.correspondence.white == authenticatedUsername || annotation.correspondence.black == authenticatedUsername);
+			var posterPlaysAsBlack = annotation.correspondence.black == poster;
+			var isPgn = (typeof annotation.pgn == 'string');
+			var posterInChallenge = (annotation.correspondence.white == poster || posterPlaysAsBlack);
+			var notEqual = (annotation.correspondence.white != annotation.correspondence.black);
+
+			// Add have already accepted/rejected, initially based only on num_replies (any reply invalidates the challenge)
+
+			return userInChallenge && posterInChallenge && notEqual && (posterPlaysAsBlack || isPgn);
+		}
+
+		fetchPostsToList($('#challengesList'), function(o)
+		{
+			return api.mentions('me', o);
+		}, isValidChallenge);
+
+
+		var $createChallengeModal = $('#createChallengeModal');
+		var $createChallengeWhiteFirstPly = $('#createChallengeWhiteFirstPly');
+
+		function getWhiteChallengePgn()
+		{
+			var pgn = $createChallengeWhiteFirstPly.val();
+			if(!/^1\./.test(pgn))
+			{
+				pgn = '1. ' + pgn;
+			}
+			return pgn;
+		}
+
+		var $createChallengeMessage = $('#createChallengeMessage');
+
+		$('#previewChallengeBtn').click(function()
+		{
+			previewGame($('#createChallengeModalError'), $('#createChallengeBoard'), authenticatedUsername, $createChallengeMessage, getWhiteChallengePgn());
+		});
+
+		var $createChallengePieces = $('#createChallengePieces');
+		$createChallengePieces.on('click', 'a', function()
+		{
+			$('.as-white', $createChallengeModal).toggle($(this).data('color') == 'white');
+		});
+
+		$('#createChallengeBtn').click(function()
+		{
+			var $btn = $(this);
+			$btn.button('loading');
+			var myColor = $('a.active', $createChallengePieces).data('color');
+			var otherColor = $('a:not(.active)', $createChallengePieces).data('color');
+			var pgn;
+
+			if(myColor == 'white')
+			{
+				pgn = getWhiteChallengePgn();
+			}
+			var annotation =
+			{
+				version: WRITE_VERSION,
+				correspondence: { },
+				pgn: pgn
+			};
+			annotation.correspondence[myColor] = authenticatedUsername;
+			var opponent = $('#createChallengeOpponent').val();
+			if(opponent.charAt(0) == '@')
+			{
+				opponent = opponent.substr(1);
+			}
+			annotation.correspondence[otherColor] = opponent;
+			var msg = $createChallengeMessage.val();
+			var opponentMention = '@' + opponent;
+			var opponentMentionRegex = new RegExp(opponentMention + '(?:[^0-9a-z_]|$)');
+			if(!opponentMentionRegex.test(msg))
+			{
+				msg = opponentMention + ' ' + msg;
+			}
+			api.posts(msg, null, true,
+			[
+				{
+					type: STANDARD_NAMESPACE,
+					value: annotation
+				}
+			]).always(function()
+			{
+				$btn.button('reset');
 			});
 		});
 	});

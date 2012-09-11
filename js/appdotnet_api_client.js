@@ -97,10 +97,11 @@ window.APPDOTNET = (function () {
             return this.request(url, options);
         },
 
-        mentions: function (user_id) {
+        mentions: function (user_id, params) {
             user_id = user_id || 'me';
             var options = {
-                type: 'GET'
+                type: 'GET',
+                data: params
             };
 
             var url = 'users/' + user_id + '/mentions';
