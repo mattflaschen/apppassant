@@ -17,6 +17,8 @@
 	// Version when writing/posting annotations
 	var WRITE_VERSION = "1.0";
 
+	var authenticatedUsername, authenticatedName;
+
 	jQuery.support.cors = true;
 
 	function getToken()
@@ -37,7 +39,7 @@
 
 	var boardCounter = 0;
 
-	function renderGamePost($boardControlHolder, posterUsername, html, pgn)
+	function renderGamePost($boardControlHolder, posterUsername, html, pgn, color)
 	{
 		$boardControlHolder.addClass('game-post');
 		var $boardHolder = $('<div />');
@@ -142,6 +144,10 @@
 
 		$boardControlHolder.empty().append($boardHolder, $controlHolder, $annotation, $pgn, $poster, $msg, $('<hr />'));
 		var board = $boardHolder.chess({pgn: pgn});
+		if(color == 'black')
+		{
+			board.flipBoard();
+		}
 		gotoEnd();
 	}
 
@@ -198,11 +204,17 @@
 
 		fetchPosts(fetchFunction, 0, function(post, annotation)
 		{
+			// Default to white for e.g. historical games
+			var color = 'white';
 			var $post = $('<div/>');
 			$holder.append($post);
 			try
 			{
-				renderGamePost($post, post.user.username, post.html, annotation.value.pgn);
+				if(annotation.value.correspondence && annotation.value.correspondence.black == authenticatedUsername)
+				{
+					color = 'black';
+				}
+				renderGamePost($post, post.user.username, post.html, annotation.value.pgn, color);
 			}
 			catch(e)
 			{
@@ -238,8 +250,6 @@
 
 		$('body').removeClass('unauthorized').addClass('authorized');
 		$.cookie('token', token);
-
-		var authenticatedUsername, authenticatedName;
 
 		api.init(
 		{
