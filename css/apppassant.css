@@ -79,11 +79,6 @@ body
     width: 226px;
 }
 
-#createChallengeOpponent
-{
-    margin-left: -2px;
-}
-
 /* Documented in Bootstrap, but not in CDN version yet */
 .text-error
 {
