@@ -157,18 +157,14 @@ window.APPDOTNET = (function () {
 	    return this.request(url, options, use_json);
         },
 
-        getposts: function (post_id, include_replies, before_id) {
+        getposts: function (post_id, include_replies, params) {
             var options = {
                 type: 'GET',
-                data: {}
+                data: params
             };
             var url = 'posts/' + post_id;
             if (include_replies) {
                 url = url + '/replies';
-                options.data.count = 200;
-                if (arguments.length >= 3 && !isNaN(before_id)) {
-                    options.data.before_id = before_id;
-                }
             }
             return this.request(url, options);
         },

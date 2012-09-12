@@ -17,6 +17,8 @@
 	// Version when writing/posting annotations
 	var WRITE_VERSION = "1.0";
 
+	var FETCH_POSTS_MAX_COUNT = 2000;
+
 	var authenticatedUsername, authenticatedName;
 
 	jQuery.support.cors = true;
@@ -168,37 +170,57 @@
 	}
 
 	// https://github.com/appdotnet/api-spec/issues/154, please
-	function fetchPosts(fetchFunction, postsFetched, foundCallback, isMore, filterPredicate, minId)
+	/*
+	 * Fetches up to FETCH_POSTS_MAX_COUNT posts using fetchFunction then calls foundCallback for each valid post (all if there is no filter)
+	 *
+	 * fetchFunction - AJAX function, taking the general post options, used to get a page of posts.
+	 * postsFetched - the number of posts fetched already (internal)
+	 * foundCallback - the function to call for matching posts.  Takes two arguments, the post and the first chess annotation
+	 * isMore - boolean indicating if there are more posts (internal)
+	 * filterCallback - function f, taking three arguments, the post, the annotation, and a single no-argument function g.  f should call g if and only if the post and annotation match the filter.  This allows filters that rely on AJAX.
+	 * beforeId - previous minimum post ID, so only posts before this are fetched, or undefined, for most recent posts
+	 */
+	function fetchPosts(fetchFunction, postsFetched, foundCallback, isMore, filterCallback, beforeId)
 	{
-		if(postsFetched < 2000 && isMore)
+		if(isMore && postsFetched < FETCH_POSTS_MAX_COUNT)
 		{
-			fetchFunction({include_annotations: 1, include_directed_posts: 1, count: 200, before_id: minId}).done(function(env)
+			fetchFunction({include_annotations: 1, include_directed_posts: 1, count: 200, before_id: beforeId}).done(function(env)
 			{
-				console.log(env);
 				postsFetched += env.data.length;
 				for(var i = 0; i < env.data.length; i++)
 				{
 					for(var j = 0; j < env.data[i].annotations.length; j++)
 					{
-						if((env.data[i].annotations[j].type == VENDOR_NAMESPACE || env.data[i].annotations[j].type == STANDARD_NAMESPACE) && filterPredicate(env.data[i], env.data[i].annotations[j]))
+						if(env.data[i].annotations[j].type == STANDARD_NAMESPACE || env.data[i].annotations[j].type == VENDOR_NAMESPACE)
 						{
-							foundCallback(env.data[i], env.data[i].annotations[j]);
+							(function(post, annotation)
+							{
+								 filterCallback(post, annotation, function()
+								 {
+									 foundCallback(post, annotation);
+								 });
+							})(env.data[i], env.data[i].annotations[j]);
 							break; // Ignore double (or more) chess annotation on same post.
 						}
 					}
 				}
-				fetchPosts(fetchFunction, postsFetched, foundCallback, env.meta.more, filterPredicate, env.meta.min_id);
+				fetchPosts(fetchFunction, postsFetched, foundCallback, env.meta.more, filterCallback, env.meta.min_id);
 			});
 		}
 	}
 
-	function fetchPostsToList($holder, fetchFunction, filterPredicate)
+	/*
+	 * $holder - jQuery node for a list that posts will be appended to
+	 * fetchFunction - see fetchPosts
+	 * filterCallback - seee fetchPosts
+	 */
+	function fetchPostsToDisplay($holder, fetchFunction, filterCallback)
 	{
-		if(filterPredicate === undefined)
+		if(filterCallback === undefined)
 		{
-			filterPredicate = function()
+			filterCallback = function(post, annotation, valid)
 			{
-				return true;
+				valid();
 			};
 		}
 
@@ -223,7 +245,40 @@
 				// We add then remove on error because board must be in the DOM when board is rendered due to internal jchess quirk.
 				$post.remove();
 			}
-		}, true, filterPredicate);
+		}, true, filterCallback);
+	}
+
+	// Searches all posts available through fetchFunction for a chess post and annotation matching predicateFunction.  Calls resultCallback as soon as a matching post is found, or all posts are checked.
+	function isMatchingPost(fetchFunction, predicateFunction, resultCallback, isMore, beforeId)
+	{
+		if(isMore)
+		{
+			fetchFunction({include_annotations: 1, include_directed_posts: 1, count: 200, before_id: beforeId}).done(function(env)
+			{
+				for(var i = 0; i < env.data.length; i++)
+				{
+					for(var j = 0; j < env.data[i].annotations.length; j++)
+					{
+						if(env.data[i].annotations[j].type == STANDARD_NAMESPACE || env.data[i].annotations[j].type == VENDOR_NAMESPACE)
+						{
+							var post = env.data[i];
+							var annotation = env.data[i].annotations[j];
+							if(predicateFunction(post, annotation))
+							{
+								resultCallback(true);
+								return;
+							}
+							break; // Ignore double (or more) chess annotation on same post.
+						}
+					}
+				}
+				isMatchingPost(fetchFunction, predicateFunction, resultCallback, env.meta.more, env.meta.min_id);
+			});
+		}
+		else
+		{
+			resultCallback(false);
+		}
 	}
 
 	$(function()
@@ -266,7 +321,7 @@
 
 		$('.adn-message').attr('maxlength', 256);
 
-		fetchPostsToList($('#streamList'), function(o)
+		fetchPostsToDisplay($('#streamList'), function(o)
 		{
 			return api.stream(o);
 		});
@@ -303,14 +358,14 @@
 			});
 		});
 
-		// Is this a valid challenge of the authenticated user?
-		function isValidChallenge(post, annotation)
+		// Is post a valid, open challenge of the authenticated user?  If so, call validCallback.
+		function isValidOpenChallenge(post, annotation, validCallback)
 		{
 			annotation = annotation.value;
-			if(!annotation.version || annotation.result)
+			if(!annotation.version || annotation.result || !annotation.correspondence)
 			{
-				// If it's the old schema, or already has a result, even *, short-circuit.
-				return false;
+				// If it's the old schema, or already has a result, even *, or no correspondence, short-circuit.
+				return;
 			}
 			var poster = post.user.username;
 			var userInChallenge = (annotation.correspondence.white == authenticatedUsername || annotation.correspondence.black == authenticatedUsername);
@@ -319,15 +374,41 @@
 			var posterInChallenge = (annotation.correspondence.white == poster || posterPlaysAsBlack);
 			var notEqual = (annotation.correspondence.white != annotation.correspondence.black);
 
-			// Add have already accepted/rejected, initially based only on num_replies (any reply invalidates the challenge)
+			if(userInChallenge && posterInChallenge && notEqual && (posterPlaysAsBlack || isPgn))
+			{
+				// Check if current user has already accepted/rejected
 
-			return userInChallenge && posterInChallenge && notEqual && (posterPlaysAsBlack || isPgn);
+				// If there are no direct replies we don't have to check further.
+				if(post.num_replies == 0)
+				{
+					validCallback();
+				}
+				else
+				{
+					// See if any of the posts in the thread are direct replies by the poster.  Issue 171 would make this faster and easier.
+					isMatchingPost(function(o)
+					{
+						return api.getposts(post.id, true, o);
+					}, function(thread_post, thread_annotation)
+					{
+						var result = thread_annotation.value.result;
+						return (thread_post.reply_to == post.id && post.user.username == authenticatedUsername && thread_annotation.value.correspondence.challenge_post_id == post.id && (result == '*' || result == 'rejected'));
+					}, function(isMatch)
+					{
+						// isMatch true means the user already replied, so challenge is no longer open.  Otherwise, it's valid.
+						if(!isMatch)
+						{
+							validCallback();
+						}
+					}, true);
+				}
+			}
 		}
 
-		fetchPostsToList($('#challengesList'), function(o)
+		fetchPostsToDisplay($('#challengesList'), function(o)
 		{
 			return api.mentions('me', o);
-		}, isValidChallenge);
+		}, isValidOpenChallenge);
 
 
 		var $createChallengeModal = $('#createChallengeModal');
@@ -400,7 +481,7 @@
 			});
 		});
 
-		fetchPostsToList($('#postsList'), function(o)
+		fetchPostsToDisplay($('#postsList'), function(o)
 		{
 			return api.get_user_posts('me', o);
 		});
