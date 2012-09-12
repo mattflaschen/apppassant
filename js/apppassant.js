@@ -399,5 +399,11 @@
 				$btn.button('reset');
 			});
 		});
+
+		fetchPostsToList($('#postsList'), function(o)
+		{
+			return api.get_user_posts('me', o);
+		});
+
 	});
 })();

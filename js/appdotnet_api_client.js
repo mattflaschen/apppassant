@@ -86,8 +86,12 @@ window.APPDOTNET = (function () {
             return $.ajax(ajax_options);
         },
 
+        get_user_id: function (user_id) {
+            return user_id || 'me';
+        },
+
         users: function (user_id) {
-            user_id = user_id || 'me';
+            user_id = this.get_user_id(user_id);
             var options = {
                 type: 'GET'
             };
@@ -98,13 +102,25 @@ window.APPDOTNET = (function () {
         },
 
         mentions: function (user_id, params) {
-            user_id = user_id || 'me';
+            user_id = this.get_user_id(user_id);
             var options = {
                 type: 'GET',
                 data: params
             };
 
             var url = 'users/' + user_id + '/mentions';
+
+            return this.request(url, options);
+        },
+
+        get_user_posts: function (user_id, params) {
+            user_id = this.get_user_id(user_id);
+            var options = {
+                type: 'GET',
+                data: params
+            };
+
+            var url = 'users/' + user_id + '/posts';
 
             return this.request(url, options);
         },
