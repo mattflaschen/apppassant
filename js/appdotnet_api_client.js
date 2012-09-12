@@ -141,18 +141,20 @@ window.APPDOTNET = (function () {
 	    return this.request(url, options, use_json);
         },
 
-        getposts: function (post_id, include_replies, before_id, include_annotations) {
-            var parameters = {};
-	    var url = 'posts/' + post_id;
-	    parameters.include_annotations = include_annotations;
+        getposts: function (post_id, include_replies, before_id) {
+            var options = {
+                type: 'GET',
+                data: {}
+            };
+            var url = 'posts/' + post_id;
             if (include_replies) {
                 url = url + '/replies';
-                parameters.count = 200;
+                options.data.count = 200;
                 if (arguments.length >= 3 && !isNaN(before_id)) {
-                    parameters.before_id = before_id;
+                    options.data.before_id = before_id;
                 }
             }
-            return this.get(url, parameters);
+            return this.request(url, options);
         },
 
         delete_post: function (post_id) {
