@@ -295,8 +295,10 @@
 		if(!token)
 		{
 			var $connectLink = $('#connectContainer a');
+			var url = window.location.href;
+			url = url.replace(/#[^#]*$/, '');
 			var connectUrl = 'https://alpha.app.net/oauth/authenticate?client_id=gpLxdRy8kwJEmdhHmfD3nfr6CJzXZWe6&response_type=token&redirect_uri=' +
-				window.location.protocol + '//' + window.location.host + '&scope=stream%20write_post%20follow%20messages';
+				url + '&scope=stream%20write_post%20follow%20messages';
 			$connectLink.attr('href', connectUrl);
 			$('#connectContainer').removeClass('hide');
 
