@@ -41,7 +41,7 @@
 
 	var boardCounter = 0;
 
-	function renderGamePost($boardControlHolder, posterUsername, html, pgn, color, post, annotation, buttons)
+	function renderGamePost($boardControlHolder, posterUsername, html, pgn, viewAsBlack, post, annotation, buttons)
 	{
 		$boardControlHolder.addClass('game-post');
 		if(post !== undefined)
@@ -167,7 +167,7 @@
 		}
 		$boardControlHolder.append($('<hr />'));
 		var board = $boardHolder.chess({pgn: pgn});
-		if(color == 'black')
+		if(viewAsBlack)
 		{
 			board.flipBoard();
 		}
@@ -175,12 +175,12 @@
 	}
 
 	// Preview when posting PGN
-	function previewGame($errorDisplay, $board, username, $msg, pgn)
+	function previewGame($errorDisplay, $board, $msg, pgn, viewAsBlack)
 	{
 		$errorDisplay.hide().text('');
 		try
 		{
-			renderGamePost($board, username, $msg.val(), pgn);
+			renderGamePost($board, authenticatedUsername, $msg.val(), pgn, viewAsBlack);
 		}
 		catch(e)
 		{
@@ -249,16 +249,16 @@
 		fetchPosts(fetchFunction, 0, function(post, annotation)
 		{
 			// Default to white for e.g. historical games
-			var color = 'white';
+			var viewAsBlack = false;
 			var $post = $('<div/>');
 			$holder.append($post);
 			try
 			{
 				if(annotation.value.correspondence && annotation.value.correspondence.black == authenticatedUsername)
 				{
-					color = 'black';
+					viewAsBlack = true;
 				}
-				renderGamePost($post, post.user.username, post.html, annotation.value.pgn, color, post, annotation, buttons);
+				renderGamePost($post, post.user.username, post.html, annotation.value.pgn, viewAsBlack, post, annotation, buttons);
 			}
 			catch(e)
 			{
@@ -369,7 +369,7 @@
 
 		$('#previewGameBtn').click(function()
 		{
-			previewGame($('#postModalError'), $('#postModalBoard'), authenticatedUsername, $('#postModalMsg'), $('#postModalPgn').val());
+			previewGame($('#postModalError'), $('#postModalBoard'), $('#postModalMsg'), $('#postModalPgn').val());
 		});
 
 		$('#postGameBtn').click(function()
@@ -440,16 +440,36 @@
 			}
 		}
 
-		function openAcceptChallenge()
+		function getGameData(btn)
 		{
+			var $gamePost = $(btn).parents('.game-post');
+			var data = $.extend(true, {}, $gamePost.data());
+			return data;
+		}
 
+		// Open move modal
+		function openMove(post, annotation)
+		{
+			annotation.type = STANDARD_NAMESPACE;
+			$moveModal.data('previous_post', post);
+			$moveModal.data('annotation', annotation);
+			$moveModal.modal();
+			previewMove();
+		}
+
+		// Accept challenge and open move modal
+		function openMoveFromChallenge()
+		{
+			var data = getGameData(this);
+			var moveAnnotation = data.annotation;
+			moveAnnotation.value.result = '*';
+			moveAnnotation.value.correspondence.challenge_post_id = data.post.id;
+			openMove(data.post, moveAnnotation);
 		}
 
 		function openRejectChallenge()
 		{
-			var $this = $(this);
-			var $gamePost = $this.parents('.game-post');
-			var data = $.extend(true, {}, $gamePost.data());
+			var data = getGameData(this);
 			var rejectAnnotation = data.annotation;
 			rejectAnnotation.type = STANDARD_NAMESPACE;
 			rejectAnnotation.value.result = 'rejected';
@@ -467,7 +487,7 @@
 		[
 			{
 				text: 'Accept',
-				click: openAcceptChallenge
+				click: openMoveFromChallenge
 			},
 			{
 				text: 'Reject',
@@ -494,7 +514,7 @@
 
 		$('#previewChallengeBtn').click(function()
 		{
-			previewGame($('#createChallengeModalError'), $('#createChallengeBoard'), authenticatedUsername, $createChallengeMessage, getWhiteChallengePgn());
+			previewGame($('#createChallengeModalError'), $('#createChallengeBoard'), $createChallengeMessage, getWhiteChallengePgn());
 		});
 
 		var $createChallengePieces = $('#createChallengePieces');
@@ -562,7 +582,77 @@
 			{
 				$btn.button('reset');
 			});
-
 		});
+
+		var $moveModal = $('#moveModal'), $movePly = $('#movePly'), $moveModalError = $('#moveModalError'), $moveBoard = $('#moveBoard'), $moveMessage = $('#moveMessage');
+
+		function getMovePgn(oldPgn, ply, playAsBlack)
+		{
+			if(ply == '')
+			{
+				return oldPgn || '';
+			}
+
+			var pgn;
+
+			// Strip initial move number if entered
+			var initialMoveNumberMatch = ply.match(/^\d+\.\s*(.*)/);
+			if(initialMoveNumberMatch)
+			{
+				ply = initialMoveNumberMatch[1];
+			}
+
+			if(playAsBlack)
+			{
+				pgn = oldPgn + ' ' + ply;
+			}
+			else
+			{
+				// When the challenger is black, the challenge does not do not include PGN
+				if(oldPgn)
+				{
+					var oldMoveNumber = +(oldPgn.match(/(\d+)\.[^.]*$/)[1]);
+					pgn = oldPgn + ' ' + (oldMoveNumber + 1) + '. ' + ply;
+				}
+				else
+				{
+					pgn = '1. ' + ply;
+				}
+
+			}
+			return pgn;
+		}
+
+		function previewMove()
+		{
+			var annotationValue = $moveModal.data('annotation').value;
+			var oldPgn = annotationValue.pgn;
+			var ply = $movePly.val();
+			var playAsBlack = annotationValue.correspondence.black == authenticatedUsername;
+
+			var pgn = getMovePgn(oldPgn, ply, playAsBlack);
+
+			previewGame($moveModalError, $moveBoard, $moveMessage, pgn, playAsBlack);
+		}
+
+		$('#previewMoveBtn').click(previewMove);
+
+		$('#moveBtn').click(function()
+		{
+			var $modal = $(this).parents('.modal');
+			var previous_post = $modal.data('previous_post');
+			var annotation = $.extend(true, {}, $modal.data('annotation')); // Make a copy so we don't accumulate plies if the post fails.
+			var msg = $moveMessage.val();
+			msg = addMention(msg, previous_post.user.username);
+			annotation.value.pgn = getMovePgn(annotation.value.pgn, $movePly.val(), annotation.value.correspondence.black == authenticatedUsername);
+			api.posts(msg, previous_post.id, true,
+			[
+				annotation
+			]).always(function()
+			{
+				$btn.button('reset');
+			});
+		});
+
 	});
 })();

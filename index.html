@@ -147,7 +147,7 @@
 				</div>	
 
 				<textarea id="createChallengeMessage" class="required adn-message" placeholder="Challenge Message">You've been challenged to a chess game in App Passant!</textarea>
-				<input id="createChallengeWhiteFirstPly"  class="required as-white" placeholder="My Move" />
+				<input id="createChallengeWhiteFirstPly"  class="required as-white" placeholder="My Move (algebraic notation)" />
 				
 				<div id="createChallengeBoard" class="as-white"></div>
 			</form>
@@ -169,6 +169,25 @@
 			<div class="modal-footer">
 				<p id="rejectChallengeModalError" class="text-error hide"></p>
 				<button id="rejectChallengeBtn" data-loading-text="Rejecting" class="btn btn-primary" data-dismiss="modal" autocomplete="off">Reject</button>
+			</div>
+		</div>
+
+		<div class="modal hide fade" id="moveModal" tabindex="-1" role="dialog" aria-labelledby="moveLabel" aria-hidden="true" data-keyboard="false">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+				<h3 id="moveLabel">My Move</h3>
+			</div>
+			<form class="modal-body modal-form">
+				<textarea id="moveMessage" class="required adn-message" placeholder="Comment (optional)"></textarea>
+				<input id="movePly"  class="required" placeholder="My Move (algebraic notation)" />
+				
+				<div id="moveBoard"></div>
+
+			</form>
+			<div class="modal-footer">
+				<p id="moveModalError" class="text-error hide"></p>
+				<button id="previewMoveBtn" class="btn" autocomplete="off">Preview</button>
+				<button id="moveBtn" data-loading-text="Moving" class="btn btn-primary" data-dismiss="modal" autocomplete="off">Move</button>
 			</div>
 		</div>
 
