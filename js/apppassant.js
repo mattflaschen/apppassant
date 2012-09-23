@@ -420,14 +420,14 @@
 				}
 				else
 				{
-					// See if any of the posts in the thread are direct replies by the poster.  Issue 171 would make this faster and easier.
+					// See if any of the posts in the thread are direct replies with acceptance (*) or rejection (rejected) by the current user.  Issue 171 would make this faster and easier.
 					isMatchingPost(function(o)
 					{
 						return api.getposts(post.id, true, o);
 					}, function(thread_post, thread_annotation)
 					{
 						var result = thread_annotation.value.result;
-						return (thread_post.reply_to == post.id && post.user.username == authenticatedUsername && thread_annotation.value.correspondence.challenge_post_id == post.id && (result == '*' || result == 'rejected'));
+						return (thread_post.reply_to == post.id && thread_post.user.username == authenticatedUsername && thread_annotation.value.correspondence.challenge_post_id == post.id && (result == '*' || result == 'rejected'));
 					}, function(isMatch)
 					{
 						// isMatch true means the user already replied, so challenge is no longer open.  Otherwise, it's valid.
