@@ -157,7 +157,20 @@
 				<button id="createChallengeBtn" data-loading-text="Challenging" class="btn btn-primary" data-dismiss="modal" autocomplete="off">Challenge</button>
 			</div>
 		</div>
-		
+
+		<div class="modal hide fade" id="rejectChallengeModal" tabindex="-1" role="dialog" aria-labelledby="rejectChallengeLabel" aria-hidden="true" data-keyboard="false">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+				<h3 id="rejectChallengeLabel">Reject Challenge</h3>
+			</div>
+			<form class="modal-body modal-form">
+				<textarea id="rejectChallengeMessage" class="required adn-message" placeholder="Rejection Message">No thanks.  Maybe another time.</textarea>
+			</form>
+			<div class="modal-footer">
+				<p id="rejectChallengeModalError" class="text-error hide"></p>
+				<button id="rejectChallengeBtn" data-loading-text="Rejecting" class="btn btn-primary" data-dismiss="modal" autocomplete="off">Reject</button>
+			</div>
+		</div>
 
 		<!-- Le javascript
 		     ================================================== -->

@@ -41,9 +41,18 @@
 
 	var boardCounter = 0;
 
-	function renderGamePost($boardControlHolder, posterUsername, html, pgn, color)
+	function renderGamePost($boardControlHolder, posterUsername, html, pgn, color, post, annotation, buttons)
 	{
 		$boardControlHolder.addClass('game-post');
+		if(post !== undefined)
+		{
+			$boardControlHolder.data('post', post);
+		}
+		if(annotation !== undefined)
+		{
+			$boardControlHolder.data('annotation', annotation);
+		}
+
 		var $boardHolder = $('<div />');
 		$boardHolder.prop('id', 'board' + (boardCounter++));
 
@@ -144,7 +153,19 @@
 
 		var $pgn = $('<p/>', {'class': 'pgn', text: pgn});
 
-		$boardControlHolder.empty().append($boardHolder, $controlHolder, $annotation, $pgn, $poster, $msg, $('<hr />'));
+		$boardControlHolder.empty().append($boardHolder, $controlHolder, $annotation, $pgn, $poster, $msg);
+		if(buttons)
+		{
+			var $buttons = $('<div />');
+			$.each(buttons, function()
+			{
+				var options = $.extend({'class': 'btn btn-primary', role: 'button'}, this);
+				var $button = $('<a />', options);
+				$buttons.append($button, '\n');
+			});
+			$boardControlHolder.append($buttons);
+		}
+		$boardControlHolder.append($('<hr />'));
 		var board = $boardHolder.chess({pgn: pgn});
 		if(color == 'black')
 		{
@@ -212,9 +233,10 @@
 	/*
 	 * $holder - jQuery node for a list that posts will be appended to
 	 * fetchFunction - see fetchPosts
-	 * filterCallback - seee fetchPosts
+	 * filterCallback - see fetchPosts
+	 * buttons - buttons for taking action on the post, optional
 	 */
-	function fetchPostsToDisplay($holder, fetchFunction, filterCallback)
+	function fetchPostsToDisplay($holder, fetchFunction, filterCallback, buttons)
 	{
 		if(filterCallback === undefined)
 		{
@@ -236,7 +258,7 @@
 				{
 					color = 'black';
 				}
-				renderGamePost($post, post.user.username, post.html, annotation.value.pgn, color);
+				renderGamePost($post, post.user.username, post.html, annotation.value.pgn, color, post, annotation, buttons);
 			}
 			catch(e)
 			{
@@ -279,6 +301,17 @@
 		{
 			resultCallback(false);
 		}
+	}
+
+	function addMention(msg, username)
+	{
+		var userMention = '@' + username;
+		var userMentionRegex = new RegExp(userMention + '(?:[^0-9a-z_]|$)');
+		if(!userMentionRegex.test(msg))
+		{
+			msg = userMention + ' ' + msg;
+		}
+		return msg;
 	}
 
 	$(function()
@@ -407,10 +440,41 @@
 			}
 		}
 
+		function openAcceptChallenge()
+		{
+
+		}
+
+		function openRejectChallenge()
+		{
+			var $this = $(this);
+			var $gamePost = $this.parents('.game-post');
+			var data = $.extend(true, {}, $gamePost.data());
+			var rejectAnnotation = data.annotation;
+			rejectAnnotation.type = STANDARD_NAMESPACE;
+			rejectAnnotation.value.result = 'rejected';
+			rejectAnnotation.value.correspondence.challenge_post_id = data.post.id;
+			var $rejectModal = $('#rejectChallengeModal');
+			$rejectModal.data('previous_post', data.post);
+			$rejectModal.data('annotation', rejectAnnotation);
+			$rejectModal.modal();
+		}
+
 		fetchPostsToDisplay($('#challengesList'), function(o)
 		{
 			return api.mentions('me', o);
-		}, isValidOpenChallenge);
+		}, isValidOpenChallenge,
+		[
+			{
+				text: 'Accept',
+				click: openAcceptChallenge
+			},
+			{
+				text: 'Reject',
+				'class': 'btn',
+				click: openRejectChallenge
+			}
+		]);
 
 
 		var $createChallengeModal = $('#createChallengeModal');
@@ -451,7 +515,7 @@
 			{
 				pgn = getWhiteChallengePgn();
 			}
-			var annotation =
+			var annotationValue =
 			{
 				version: WRITE_VERSION,
 				correspondence: { },
@@ -465,17 +529,12 @@
 			}
 			annotation.correspondence[otherColor] = opponent;
 			var msg = $createChallengeMessage.val();
-			var opponentMention = '@' + opponent;
-			var opponentMentionRegex = new RegExp(opponentMention + '(?:[^0-9a-z_]|$)');
-			if(!opponentMentionRegex.test(msg))
-			{
-				msg = opponentMention + ' ' + msg;
-			}
+			msg = addMention(msg, opponent);
 			api.posts(msg, null, true,
 			[
 				{
 					type: STANDARD_NAMESPACE,
-					value: annotation
+					value: annotationValue
 				}
 			]).always(function()
 			{
@@ -488,5 +547,22 @@
 			return api.get_user_posts('me', o);
 		});
 
+
+		$('#rejectChallengeBtn').click(function()
+		{
+			var $modal = $(this).parents('.modal');
+			var previous_post = $modal.data('previous_post');
+			var rejectAnnotation = $modal.data('annotation');
+			var msg = $('#rejectChallengeMessage').val();
+			msg = addMention(msg, previous_post.user.username);
+			api.posts(msg, previous_post.id, true,
+			[
+				rejectAnnotation
+			]).always(function()
+			{
+				$btn.button('reset');
+			});
+
+		});
 	});
 })();
