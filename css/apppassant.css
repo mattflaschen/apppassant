@@ -84,3 +84,13 @@ body
 {
     color: #B94A48;
 }
+
+#moveModal
+{
+    top: 40%;
+}
+
+#moveModal .modal-body
+{
+    max-height: none;
+}

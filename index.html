@@ -77,6 +77,7 @@
 			<ul id="mainTabs" class="nav nav-tabs">
 				<li class="active"><a href="#stream" data-toggle="tab">Stream</a></li>
 				<li><a href="#challenges" data-toggle="tab">Challenges</a></li>
+				<li><a href="#readyGames" data-toggle="tab">Ready Games</a></li>
 				<li><a href="#posts" data-toggle="tab">My Posts</a></li>
 			</ul>
 
@@ -89,6 +90,11 @@
 				<div id="challenges" class="tab-pane fade">
 					<h3>Challenges</h3>
 					<div id="challengesList"></div>
+				</div>
+
+				<div id="readyGames" class="tab-pane fade">
+					<h3>Ready Games</h3>
+					<div id="readyGamesList"></div>
 				</div>
 
 				<div id="posts" class="tab-pane fade">
@@ -179,7 +185,7 @@
 			</div>
 			<form class="modal-body modal-form">
 				<textarea id="moveMessage" class="required adn-message" placeholder="Comment (optional)"></textarea>
-				<input id="movePly"  class="required" placeholder="My Move (algebraic notation)" />
+				<input id="movePly" class="required" placeholder="My Move (algebraic notation)" />
 				
 				<div id="moveBoard"></div>
 

@@ -190,6 +190,19 @@
 		}
 	}
 
+	function getChessAnnotation(post)
+	{
+		for(var i = 0; i < post.annotations.length; i++)
+		{
+			if(post.annotations[i].type == STANDARD_NAMESPACE || post.annotations[i].type == VENDOR_NAMESPACE)
+			{
+				// Ignore double (or more) chess annotation on same post.
+				return post.annotations[i];
+			}
+		}
+		return null;
+	}
+
 	// https://github.com/appdotnet/api-spec/issues/154, please
 	/*
 	 * Fetches up to FETCH_POSTS_MAX_COUNT posts using fetchFunction then calls foundCallback for each valid post (all if there is no filter)
@@ -210,19 +223,16 @@
 				postsFetched += env.data.length;
 				for(var i = 0; i < env.data.length; i++)
 				{
-					for(var j = 0; j < env.data[i].annotations.length; j++)
+					var possibleAnnotation = getChessAnnotation(env.data[i]);
+					if(possibleAnnotation)
 					{
-						if(env.data[i].annotations[j].type == STANDARD_NAMESPACE || env.data[i].annotations[j].type == VENDOR_NAMESPACE)
+						(function(post, annotation)
 						{
-							(function(post, annotation)
+							filterCallback(post, annotation, function()
 							{
-								 filterCallback(post, annotation, function()
-								 {
-									 foundCallback(post, annotation);
-								 });
-							})(env.data[i], env.data[i].annotations[j]);
-							break; // Ignore double (or more) chess annotation on same post.
-						}
+								foundCallback(post, annotation);
+							});
+						})(env.data[i], possibleAnnotation);
 					}
 				}
 				fetchPosts(fetchFunction, postsFetched, foundCallback, env.meta.more, filterCallback, env.meta.min_id);
@@ -271,26 +281,21 @@
 	}
 
 	// Searches all posts available through fetchFunction for a chess post and annotation matching predicateFunction.  Calls resultCallback as soon as a matching post is found, or all posts are checked.
-	function isMatchingPost(fetchFunction, predicateFunction, resultCallback, isMore, beforeId)
+	function isMatchingPost(fetchFunction, predicateFunction, resultCallback, isMore, beforeId, sinceId)
 	{
 		if(isMore)
 		{
-			fetchFunction({include_annotations: 1, include_directed_posts: 1, count: 200, before_id: beforeId}).done(function(env)
+			fetchFunction({include_annotations: 1, include_directed_posts: 1, count: 200, before_id: beforeId, since_id: sinceId}).done(function(env)
 			{
 				for(var i = 0; i < env.data.length; i++)
 				{
-					for(var j = 0; j < env.data[i].annotations.length; j++)
+					var annotation = getChessAnnotation(env.data[i]);
+					if(annotation)
 					{
-						if(env.data[i].annotations[j].type == STANDARD_NAMESPACE || env.data[i].annotations[j].type == VENDOR_NAMESPACE)
+						if(predicateFunction(env.data[i], annotation))
 						{
-							var post = env.data[i];
-							var annotation = env.data[i].annotations[j];
-							if(predicateFunction(post, annotation))
-							{
-								resultCallback(true);
-								return;
-							}
-							break; // Ignore double (or more) chess annotation on same post.
+							resultCallback(true);
+							return;
 						}
 					}
 				}
@@ -356,10 +361,18 @@
 
 		$('.adn-message').attr('maxlength', 256);
 
+		function isGame(post, annotation, validCallback)
+		{
+			if(annotation.value.pgn)
+			{
+				validCallback();
+			}
+		}
+
 		fetchPostsToDisplay($('#streamList'), function(o)
 		{
 			return api.stream(o);
-		});
+		}, isGame);
 
 		$('.modal').on('show', function()
 		{
@@ -424,10 +437,10 @@
 					isMatchingPost(function(o)
 					{
 						return api.getposts(post.id, true, o);
-					}, function(thread_post, thread_annotation)
+					}, function(threadPost, threadAnnotation)
 					{
-						var result = thread_annotation.value.result;
-						return (thread_post.reply_to == post.id && thread_post.user.username == authenticatedUsername && thread_annotation.value.correspondence.challenge_post_id == post.id && (result == '*' || result == 'rejected'));
+						var result = threadAnnotation.value.result;
+						return (threadPost.reply_to == post.id && threadPost.user.username == authenticatedUsername && threadAnnotation.value.correspondence.challenge_post_id == post.id && (result == '*' || result == 'rejected'));
 					}, function(isMatch)
 					{
 						// isMatch true means the user already replied, so challenge is no longer open.  Otherwise, it's valid.
@@ -451,7 +464,7 @@
 		function openMove(post, annotation)
 		{
 			annotation.type = STANDARD_NAMESPACE;
-			$moveModal.data('previous_post', post);
+			$moveModal.data('previousPost', post);
 			$moveModal.data('annotation', annotation);
 			$moveModal.modal();
 			previewMove();
@@ -467,6 +480,12 @@
 			openMove(data.post, moveAnnotation);
 		}
 
+		function openMoveFromReadyGame()
+		{
+			var data = getGameData(this);
+			openMove(data.post, data.annotation);
+		}
+
 		function openRejectChallenge()
 		{
 			var data = getGameData(this);
@@ -475,7 +494,7 @@
 			rejectAnnotation.value.result = 'rejected';
 			rejectAnnotation.value.correspondence.challenge_post_id = data.post.id;
 			var $rejectModal = $('#rejectChallengeModal');
-			$rejectModal.data('previous_post', data.post);
+			$rejectModal.data('previousPost', data.post);
 			$rejectModal.data('annotation', rejectAnnotation);
 			$rejectModal.modal();
 		}
@@ -565,17 +584,17 @@
 		fetchPostsToDisplay($('#postsList'), function(o)
 		{
 			return api.get_user_posts('me', o);
-		});
+		}, isGame);
 
 
 		$('#rejectChallengeBtn').click(function()
 		{
 			var $modal = $(this).parents('.modal');
-			var previous_post = $modal.data('previous_post');
+			var previousPost = $modal.data('previousPost');
 			var rejectAnnotation = $modal.data('annotation');
 			var msg = $('#rejectChallengeMessage').val();
-			msg = addMention(msg, previous_post.user.username);
-			api.posts(msg, previous_post.id, true,
+			msg = addMention(msg, previousPost.user.username);
+			api.posts(msg, previousPost.id, true,
 			[
 				rejectAnnotation
 			]).always(function()
@@ -583,6 +602,159 @@
 				$btn.button('reset');
 			});
 		});
+
+		function isValidReadyGame(post, annotation, validCallback)
+		{
+			annotation = annotation.value;
+			if(!(annotation.version && annotation.result == '*' && post.reply_to && annotation.correspondence))
+			{
+				return;
+			}
+
+			// Get post they're replying to (previous post).
+			api.getposts(post.reply_to, false, {include_annotations: 1}).done(function(env)
+			{
+				var previousPost = env.data;
+				var previousAnnotation = getChessAnnotation(previousPost);
+
+				if(!previousAnnotation)
+				{
+					return;
+				}
+
+				previousAnnotation = previousAnnotation.value;
+
+				// These checks consider the previous post in isolation.
+
+				// There should only be a missing challenge_post_id on previous if it was a challenge, which is reflected in the second line; challenges don't have results either.
+				if(!(previousPost.user.username == authenticatedUsername && previousAnnotation.correspondence &&
+				     (previousAnnotation.correspondence.challenge_post_id || !previousAnnotation.result)))
+				{
+					return;
+				}
+
+				var previousChallengePostId = previousAnnotation.correspondence.challenge_post_id || previousPost.id;
+
+				var expectedColor;
+				if(previousAnnotation.correspondence.white == authenticatedUsername)
+				{
+					expectedColor = 'black';
+				}
+				else
+				{
+					expectedColor = 'white';
+				}
+
+				// parsePGN does useful normalization (e.g. removes numbers and spacing, and the result if the game is over).
+				var previousPgn = previousAnnotation.pgn || '';
+				var previousHalfMoveCount, previousGameBody;
+				if(previousPgn != '')
+				{
+					var previousChess = new $.chess({pgn: previousPgn});
+					previousChess.loadBoard();
+					previousGameBody = previousChess.game.body;
+					previousHalfMoveCount = previousChess.game.moves.length;
+				}
+				else
+				{
+					// Previous PGN expected to be empty for challenges as black.
+					previousGameBody = '';
+					previousHalfMoveCount = 0;
+				}
+
+				/*
+				   This only considers the currentPost and previousPost, not other potential replies to previousPost
+				   We're checking that the opponent replied appropriately to a challenge or move by us, in the same game.
+
+				   This is a regular predicate, since it does not require AJAX.
+				 */
+				function isValidReplyToPrevious(currentPost, currentAnnotationValue)
+				{
+					if(!(currentAnnotationValue.correspondence && currentAnnotationValue.correspondence.white == previousAnnotation.correspondence.white && currentAnnotationValue.correspondence.black == previousAnnotation.correspondence.black &&
+					     currentAnnotationValue.correspondence.challenge_post_id == previousChallengePostId && currentAnnotationValue.correspondence[expectedColor] == currentPost.user.username &&
+					     (currentAnnotationValue.correspondence.is_final === undefined || currentAnnotationValue.correspondence.is_final === true)))
+					{
+						return false;
+					}
+
+					var currentChess = new $.chess({pgn: currentAnnotationValue.pgn});
+					currentChess.loadBoard();
+
+					var currentExtendsPrevious = currentChess.game.body.indexOf(previousGameBody) == 0;
+					if(!(currentExtendsPrevious && (currentChess.game.moves.length - previousHalfMoveCount) == 1))
+					{
+						return false;
+					}
+
+					return true;
+				}
+
+				// Is the main post a valid reply?
+				if(!isValidReplyToPrevious(post, annotation))
+				{
+					return;
+				}
+
+				var possiblyDouble = previousPost.num_replies > 1;
+				var possiblyResolved = post.num_replies > 0;
+				if(!possiblyDouble && !possiblyResolved)
+				{
+					validCallback();
+					return;
+				}
+
+				/*
+				   Otherwise, check the whole thread to see if either a. There is a previous valid move (i.e. this is a double move) or b. The authenticated user already responded to this move.
+
+				   If both, after previous.
+				   If only possiblyDouble, after previous, before post.
+				   If only possiblyResolved, after post.
+				 */
+				var sinceId = post.id, beforeId = post.id;
+				if(possiblyDouble)
+				{
+					sinceId = previousPost.id;
+				}
+				if(possiblyResolved)
+				{
+					beforeId = undefined;
+				}
+
+				isMatchingPost(function(o)
+				{
+					return api.getposts(post.id, true, o);
+				}, function(threadPost, threadAnnotation)
+				{
+					// Earlier valid move reply to previousPost
+					return (threadPost.reply_to == previousPost.id && threadPost.id < post.id && isValidReplyToPrevious(threadPost, threadAnnotation.value)) ||
+					// Move reply by current user in response to post
+					       (threadPost.user.username == authenticatedUsername && threadPost.reply_to == post.id && threadAnnotation.value.correspondence);
+					var result = threadAnnotation.value.result;
+					return (threadPost.reply_to == post.id && threadPost.user.username == authenticatedUsername && threadAnnotation.value.correspondence.challenge_post_id == post.id && (result == '*' || result == 'rejected'));
+				}, function(isMatch)
+				{
+					// isMatch true means either the opponent made an earlier valid move reply to previousPost (so this is a double move), or the current user already made the move after this.  Otherwise, it's valid.
+					// Both of these would be much faster with an endpoint to get direct replies (issue 171).
+					if(!isMatch)
+					{
+						validCallback();
+					}
+				}, true, beforeId, sinceId);
+			});
+		}
+
+		// TODO: See https://github.com/mattflaschen/apppassant/issues/29
+		fetchPostsToDisplay($('#readyGamesList'), function(o)
+		{
+			return api.mentions('me', o);
+		}, isValidReadyGame,
+		[
+			{
+				text: 'Move',
+				click: openMoveFromReadyGame
+			}
+		]);
+
 
 		var $moveModal = $('#moveModal'), $movePly = $('#movePly'), $moveModalError = $('#moveModalError'), $moveBoard = $('#moveBoard'), $moveMessage = $('#moveMessage');
 
@@ -640,12 +812,12 @@
 		$('#moveBtn').click(function()
 		{
 			var $modal = $(this).parents('.modal');
-			var previous_post = $modal.data('previous_post');
+			var previousPost = $modal.data('previousPost');
 			var annotation = $.extend(true, {}, $modal.data('annotation')); // Make a copy so we don't accumulate plies if the post fails.
 			var msg = $moveMessage.val();
-			msg = addMention(msg, previous_post.user.username);
+			msg = addMention(msg, previousPost.user.username);
 			annotation.value.pgn = getMovePgn(annotation.value.pgn, $movePly.val(), annotation.value.correspondence.black == authenticatedUsername);
-			api.posts(msg, previous_post.id, true,
+			api.posts(msg, previousPost.id, true,
 			[
 				annotation
 			]).always(function()
