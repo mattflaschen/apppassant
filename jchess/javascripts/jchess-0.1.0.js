@@ -77,7 +77,8 @@ jQuery.eachWithContext = function(context, object, callback) {
     },
 
     prototype : {
-      init : function() {
+      // Load a board (optionally using PGN).  Writing it to the DOM is done in writeBoard.
+      loadBoard : function() {
         // Load a fresh board position
         this.setUpBoard( this.parseFEN( this.settings.fen ) );
 
@@ -85,6 +86,10 @@ jQuery.eachWithContext = function(context, object, callback) {
         if (this.settings.pgn) this.parsePGN(this.settings.pgn);
 
         this.setUpBoard( this.parseFEN( this.settings.fen ) );
+      },
+
+      init : function() {
+        this.loadBoard();
         this.writeBoard();
       },
 
