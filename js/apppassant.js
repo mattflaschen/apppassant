@@ -209,12 +209,13 @@
 	 *
 	 * fetchFunction - AJAX function, taking the general post options, used to get a page of posts.
 	 * postsFetched - the number of posts fetched already (internal)
-	 * foundCallback - the function to call for matching posts.  Takes two arguments, the post and the first chess annotation
+	 * actions - array of objects with two fields, filter and found:
+	 ** filter - function f, taking three arguments, the post, the annotation, and a single no-argument function g.  f should call g if and only if the post and annotation match the filter.  This allows filters that rely on AJAX.
+	 ** found - the function to call for matching posts.  Takes two arguments, the post and the first chess annotation
 	 * isMore - boolean indicating if there are more posts (internal)
-	 * filterCallback - function f, taking three arguments, the post, the annotation, and a single no-argument function g.  f should call g if and only if the post and annotation match the filter.  This allows filters that rely on AJAX.
 	 * beforeId - previous minimum post ID, so only posts before this are fetched, or undefined, for most recent posts
 	 */
-	function fetchPosts(fetchFunction, postsFetched, foundCallback, isMore, filterCallback, beforeId)
+	function fetchPosts(fetchFunction, postsFetched, actions, isMore, beforeId)
 	{
 		if(isMore && postsFetched < FETCH_POSTS_MAX_COUNT)
 		{
@@ -228,56 +229,65 @@
 					{
 						(function(post, annotation)
 						{
-							filterCallback(post, annotation, function()
+							$.each(actions, function(i, action)
 							{
-								foundCallback(post, annotation);
+								action.filter(post, annotation, function()
+								{
+									action.found(post, annotation);
+								});
 							});
 						})(env.data[i], possibleAnnotation);
 					}
 				}
-				fetchPosts(fetchFunction, postsFetched, foundCallback, env.meta.more, filterCallback, env.meta.min_id);
+				fetchPosts(fetchFunction, postsFetched, actions, env.meta.more, env.meta.min_id);
 			});
 		}
 	}
 
 	/*
-	 * $holder - jQuery node for a list that posts will be appended to
 	 * fetchFunction - see fetchPosts
-	 * filterCallback - see fetchPosts
-	 * buttons - buttons for taking action on the post, optional
+	 * mappings - array of objects with up to three fields, holder, filter, buttons.
+	 ** holder - jQuery element to hold fetched posts.
+	 ** filter - see fetchPosts
+	 ** buttons - buttons to show below game.  See renderGamePost.
 	 */
-	function fetchPostsToDisplay($holder, fetchFunction, filterCallback, buttons)
+	function fetchPostsToDisplay(fetchFunction, mappings)
 	{
-		if(filterCallback === undefined)
+		function nopFilter(post, annotation, valid)
 		{
-			filterCallback = function(post, annotation, valid)
-			{
-				valid();
-			};
-		}
+			valid();
+		};
 
-		fetchPosts(fetchFunction, 0, function(post, annotation)
+		var actions = $.map(mappings, function(mapping)
 		{
-			// Default to white for e.g. historical games
-			var viewAsBlack = false;
-			var $post = $('<div/>');
-			$holder.append($post);
-			try
-			{
-				if(annotation.value.correspondence && annotation.value.correspondence.black == authenticatedUsername)
+			return {
+				filter: mapping.filter || nopFilter,
+				found: function(post, annotation)
 				{
-					viewAsBlack = true;
+					// Default to white for e.g. historical games
+					var viewAsBlack = false;
+					var $post = $('<div/>');
+					mapping.holder.append($post);
+					try
+					{
+						if(annotation.value.correspondence && annotation.value.correspondence.black == authenticatedUsername)
+						{
+							viewAsBlack = true;
+						}
+						renderGamePost($post, post.user.username, post.html, annotation.value.pgn, viewAsBlack, post, annotation, mapping.buttons);
+					}
+					catch(e)
+					{
+						console.log('Error rendering game from stream: ');
+						console.log(e);
+						// We add then remove on error because board must be in the DOM when board is rendered due to internal jchess quirk.
+						$post.remove();
+					}
 				}
-				renderGamePost($post, post.user.username, post.html, annotation.value.pgn, viewAsBlack, post, annotation, buttons);
-			}
-			catch(e)
-			{
-				console.log('Error rendering game from stream: ');
-				console.log(e);
-				// We add then remove on error because board must be in the DOM when board is rendered due to internal jchess quirk.
-				$post.remove();
-			}
-		}, true, filterCallback);
+			};
+		});
+
+		fetchPosts(fetchFunction, 0, actions, true);
 	}
 
 	// Searches all posts available through fetchFunction for a chess post and annotation matching predicateFunction.  Calls resultCallback as soon as a matching post is found, or all posts are checked.
@@ -369,10 +379,10 @@
 			}
 		}
 
-		fetchPostsToDisplay($('#streamList'), function(o)
+		fetchPostsToDisplay(function(o)
 		{
 			return api.stream(o);
-		}, isGame);
+		}, [{holder: $('#streamList'), filter: isGame}]);
 
 		$('.modal').on('show', function()
 		{
@@ -499,19 +509,37 @@
 			$rejectModal.modal();
 		}
 
-		fetchPostsToDisplay($('#challengesList'), function(o)
+		fetchPostsToDisplay(function(o)
 		{
 			return api.mentions('me', o);
-		}, isValidOpenChallenge,
+		},
 		[
 			{
-				text: 'Accept',
-				click: openMoveFromChallenge
+				holder: $('#challengesList'),
+				filter: isValidOpenChallenge,
+				buttons:
+				[
+					{
+						text: 'Accept',
+						click: openMoveFromChallenge
+					},
+					{
+						text: 'Reject',
+						'class': 'btn',
+						click: openRejectChallenge
+					}
+				]
 			},
 			{
-				text: 'Reject',
-				'class': 'btn',
-				click: openRejectChallenge
+				holder:	$('#readyGamesList'),
+				filter:	isValidReadyGame,
+				buttons:
+				[
+					{
+						text: 'Move',
+						click: openMoveFromReadyGame
+					}
+				]
 			}
 		]);
 
@@ -581,10 +609,16 @@
 			});
 		});
 
-		fetchPostsToDisplay($('#postsList'), function(o)
+		fetchPostsToDisplay(function(o)
 		{
 			return api.get_user_posts('me', o);
-		}, isGame);
+		},
+		[
+			{
+				holder: $('#postsList'),
+				filter: isGame
+			}
+		]);
 
 
 		$('#rejectChallengeBtn').click(function()
@@ -742,19 +776,6 @@
 				}, true, beforeId, sinceId);
 			});
 		}
-
-		// TODO: See https://github.com/mattflaschen/apppassant/issues/29
-		fetchPostsToDisplay($('#readyGamesList'), function(o)
-		{
-			return api.mentions('me', o);
-		}, isValidReadyGame,
-		[
-			{
-				text: 'Move',
-				click: openMoveFromReadyGame
-			}
-		]);
-
 
 		var $moveModal = $('#moveModal'), $movePly = $('#movePly'), $moveModalError = $('#moveModalError'), $moveBoard = $('#moveBoard'), $moveMessage = $('#moveMessage');
 
