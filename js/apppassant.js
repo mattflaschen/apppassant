@@ -560,13 +560,13 @@
 				correspondence: { },
 				pgn: pgn
 			};
-			annotation.correspondence[myColor] = authenticatedUsername;
+			annotationValue.correspondence[myColor] = authenticatedUsername;
 			var opponent = $('#createChallengeOpponent').val();
 			if(opponent.charAt(0) == '@')
 			{
 				opponent = opponent.substr(1);
 			}
-			annotation.correspondence[otherColor] = opponent;
+			annotationValue.correspondence[otherColor] = opponent;
 			var msg = $createChallengeMessage.val();
 			msg = addMention(msg, opponent);
 			api.posts(msg, null, true,
