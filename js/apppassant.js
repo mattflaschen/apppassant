@@ -386,7 +386,10 @@
 
 		$('.modal').on('show', function()
 		{
-			$('form', this)[0].reset();
+			$('form', this).each(function()
+			{
+				this.reset();
+			});
 			$('.game-post', this).empty();
 		});
 
