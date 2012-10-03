@@ -81,11 +81,11 @@ body
 
 #moveModal
 {
-    top: 40%;
-    height: 81%;
+    top: 35%;
+    height: 85%;
 }
 
 #moveModal .modal-body
 {
-    max-height: 80%;
+    max-height: none;
 }
