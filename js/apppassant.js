@@ -767,8 +767,6 @@
 					return (threadPost.reply_to == previousPost.id && threadPost.id < post.id && isValidReplyToPrevious(threadPost, threadAnnotation.value)) ||
 					// Move reply by current user in response to post
 					       (threadPost.user.username == authenticatedUsername && threadPost.reply_to == post.id && threadAnnotation.value.correspondence);
-					var result = threadAnnotation.value.result;
-					return (threadPost.reply_to == post.id && threadPost.user.username == authenticatedUsername && threadAnnotation.value.correspondence.challenge_post_id == post.id && (result == '*' || result == 'rejected'));
 				}, function(isMatch)
 				{
 					// isMatch true means either the opponent made an earlier valid move reply to previousPost (so this is a double move), or the current user already made the move after this.  Otherwise, it's valid.
