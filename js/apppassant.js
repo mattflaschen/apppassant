@@ -177,14 +177,14 @@
 	// Preview when posting PGN
 	function previewGame($errorDisplay, $board, $msg, pgn, viewAsBlack)
 	{
-		$errorDisplay.hide().text('');
 		try
 		{
 			renderGamePost($board, authenticatedUsername, $msg.val(), pgn, viewAsBlack);
 		}
 		catch(e)
 		{
-			console.log('Error rendering entered PGN: ');
+			// This should be unreachable if earlier validation is done properly.
+			console.log('Error previewing entered PGN: ');
 			console.log(e);
 			$errorDisplay.text('We were unable to display the game from your PGN.  Please try again.').show();
 		}
@@ -390,6 +390,7 @@
 			{
 				this.reset();
 			});
+			$('.text-error', this).hide().text('');
 			$('.game-post', this).empty();
 		});
 
@@ -782,51 +783,70 @@
 
 		var $moveModal = $('#moveModal'), $movePly = $('#movePly'), $moveModalError = $('#moveModalError'), $moveBoard = $('#moveBoard'), $moveMessage = $('#moveMessage');
 
-		function getMovePgn(oldPgn, ply, playAsBlack)
+		/*
+		 * Get game (chess.js object), and move (chess.js move object)
+		 *
+		 * The game will include the latest move if it's valid.  Otherwise, it will be the game corresponding to the old PGN.
+		 *
+		 * oldPgn - prior PGN
+		 * ply - user-entered ply
+		 */
+		function getGameAndMove(oldPgn, ply)
 		{
-			if(ply == '')
-			{
-				return oldPgn || '';
-			}
-
-			var pgn;
-
-			// Strip initial move number if entered
+			// Strip initial move number if entered (e.g. 5. Nf6 ->	Nf6)
 			var initialMoveNumberMatch = ply.match(/^\d+\.\s*(.*)/);
 			if(initialMoveNumberMatch)
 			{
 				ply = initialMoveNumberMatch[1];
 			}
 
-			if(playAsBlack)
-			{
-				pgn = oldPgn + ' ' + ply;
-			}
-			else
-			{
-				// When the challenger is black, the challenge does not do not include PGN
-				if(oldPgn)
-				{
-					var oldMoveNumber = +(oldPgn.match(/(\d+)\.[^.]*$/)[1]);
-					pgn = oldPgn + ' ' + (oldMoveNumber + 1) + '. ' + ply;
-				}
-				else
-				{
-					pgn = '1. ' + ply;
-				}
+			var game = new Chess();
+			game.load_pgn(oldPgn);
+			var move = game.move(ply);
+			return {
+				game: game,
+				move: move
+			};
+		}
 
+		/*
+		 * $errorDisplay - error display as jQuery node
+		 * moveInfo - Return from getGameAndMove.
+		 * ply - ply entered by user
+		 */
+		function displayIfIllegal($errorDisplay, moveInfo, ply)
+		{
+			var msg;
+			$errorDisplay.hide().text('');
+			if(!moveInfo.move)
+			{
+				msg = '\'' + ply + '\' is not currently a valid move.  Please check your algebraic notation.';
+				if(moveInfo.game.in_check())
+				{
+					msg += ' You must move out of check.';
+				}
+				$errorDisplay.text(msg).show();
 			}
-			return pgn;
 		}
 
 		function previewMove()
 		{
 			var annotationValue = $moveModal.data('annotation').value;
 			var oldPgn = annotationValue.pgn;
+			// Default to showing old PGN, or blank, unless a valid ply is entered.
+			var pgn = oldPgn || '';
 			var ply = $movePly.val();
 			var playAsBlack = annotationValue.correspondence.black == authenticatedUsername;
 
-			var pgn = getMovePgn(oldPgn, ply, playAsBlack);
+			if(ply)
+			{
+				var moveInfo = getGameAndMove(oldPgn, ply);
+				displayIfIllegal($moveModalError, moveInfo, ply);
+				if(moveInfo.move)
+				{
+					pgn = moveInfo.game.pgn();
+				}
+			}
 
 			previewGame($moveModalError, $moveBoard, $moveMessage, pgn, playAsBlack);
 		}
@@ -837,17 +857,29 @@
 		{
 			var $modal = $(this).parents('.modal');
 			var previousPost = $modal.data('previousPost');
+			var ply = $movePly.val();
 			var annotation = $.extend(true, {}, $modal.data('annotation')); // Make a copy so we don't accumulate plies if the post fails.
-			var msg = $moveMessage.val();
-			msg = addMention(msg, previousPost.user.username);
-			annotation.value.pgn = getMovePgn(annotation.value.pgn, $movePly.val(), annotation.value.correspondence.black == authenticatedUsername);
-			api.posts(msg, previousPost.id, true,
-			[
-				annotation
-			]).always(function()
+			var oldPgn = annotation.value.pgn;
+			var moveInfo = getGameAndMove(oldPgn, ply);
+			displayIfIllegal($moveModalError, moveInfo, ply);
+
+			// Ply is valid
+			if(moveInfo.move)
 			{
-				$btn.button('reset');
-			});
+				var msg = $moveMessage.val();
+				msg = addMention(msg, previousPost.user.username);
+				annotation.value.pgn = moveInfo.game.pgn();
+				api.posts(msg, previousPost.id, true,
+				[
+					annotation
+				]).done(function()
+				{
+					$modal.modal('hide');
+				}).always(function()
+				{
+					$btn.button('reset');
+				});
+			}
 		});
 
 	});
