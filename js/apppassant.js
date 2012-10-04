@@ -359,7 +359,7 @@
 		api.init(
 		{
 			access_token: token,
-			debug: true,
+			debug: false,
 			no_globals: true
 		});
 
