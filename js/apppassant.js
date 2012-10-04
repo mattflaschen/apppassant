@@ -671,55 +671,69 @@
 					return;
 				}
 
-				var previousChallengePostId = previousAnnotation.correspondence.challenge_post_id || previousPost.id;
+				function getPostMoveInformation(post, annotationValue)
+				{
+					// This does useful normalization (e.g. removes numbers and spacing, add + for check).
+					var pgn = annotationValue.pgn || '';
+					var halfMoveCount, gameBody;
+					if(pgn != '')
+					{
+						var chess = new Chess();
+						var isValidPgn = chess.load_pgn(pgn);
+						var history = chess.history();
+						gameBody = history.toString();
+						halfMoveCount = history.length;
+					}
+					else
+					{
+						// PGN expected to be empty for challenges as black.
+						gameBody = '';
+						halfMoveCount = 0;
+					}
 
-				var expectedColor;
-				if(previousAnnotation.correspondence.white == authenticatedUsername)
-				{
-					expectedColor = 'black';
-				}
-				else
-				{
-					expectedColor = 'white';
-				}
-
-				// parsePGN does useful normalization (e.g. removes numbers and spacing, and the result if the game is over).
-				var previousPgn = previousAnnotation.pgn || '';
-				var previousHalfMoveCount, previousGameBody;
-				if(previousPgn != '')
-				{
-					var previousChess = new $.chess({pgn: previousPgn});
-					previousChess.loadBoard();
-					previousGameBody = previousChess.game.body;
-					previousHalfMoveCount = previousChess.game.moves.length;
-				}
-				else
-				{
-					// Previous PGN expected to be empty for challenges as black.
-					previousGameBody = '';
-					previousHalfMoveCount = 0;
+					return {
+						annotationValue: annotationValue,
+						post: post,
+						challengePostId: annotationValue.correspondence.challenge_post_id || post.id,
+						gameBody: gameBody,
+						halfMoveCount: halfMoveCount,
+						isValidPgn: isValidPgn
+					};
 				}
 
 				/*
-				   This only considers the currentPost and previousPost, not other potential replies to previousPost
-				   We're checking that the opponent replied appropriately to a challenge or move by us, in the same game.
+				   This only considers previous and reply, not other potential replies to previous.
+				   We're checking that the reply is an appropriate response to the challenge or move in previous, in the same game.
 
-				   This is a regular predicate, since it does not require AJAX.
+				   This is a regular predicate, since it does not require AJAX.  Parameters should be as returned from getPostMoveInformation
 				 */
-				function isValidReplyToPrevious(currentPost, currentAnnotationValue)
+				function isValidMoveReply(previous, reply)
 				{
-					if(!(currentAnnotationValue.correspondence && currentAnnotationValue.correspondence.white == previousAnnotation.correspondence.white && currentAnnotationValue.correspondence.black == previousAnnotation.correspondence.black &&
-					     currentAnnotationValue.correspondence.challenge_post_id == previousChallengePostId && currentAnnotationValue.correspondence[expectedColor] == currentPost.user.username &&
-					     (currentAnnotationValue.correspondence.is_final === undefined || currentAnnotationValue.correspondence.is_final === true)))
+					if(!reply.isValidPgn)
 					{
 						return false;
 					}
 
-					var currentChess = new $.chess({pgn: currentAnnotationValue.pgn});
-					currentChess.loadBoard();
+					var expectedPosterColor;
+					if(previous.annotationValue.correspondence.white == previous.post.user.username)
+					{
+						expectedPosterColor = 'black';
+					}
+					else
+					{
+						expectedPosterColor = 'white';
+					}
 
-					var currentExtendsPrevious = currentChess.game.body.indexOf(previousGameBody) == 0;
-					if(!(currentExtendsPrevious && (currentChess.game.moves.length - previousHalfMoveCount) == 1))
+					if(!(reply.annotationValue.correspondence && reply.annotationValue.correspondence.white == previous.annotationValue.correspondence.white &&
+					     reply.annotationValue.correspondence.black == previous.annotationValue.correspondence.black &&
+					     reply.annotationValue.correspondence.challenge_post_id == previous.challengePostId && reply.annotationValue.correspondence[expectedPosterColor] == reply.post.user.username &&
+					     (reply.annotationValue.correspondence.is_final === undefined || reply.annotationValue.correspondence.is_final === true)))
+					{
+						return false;
+					}
+
+					var replyExtendsPrevious = reply.gameBody.indexOf(previous.gameBody) == 0;
+					if(!(replyExtendsPrevious && (reply.halfMoveCount - previous.halfMoveCount) == 1))
 					{
 						return false;
 					}
@@ -727,8 +741,11 @@
 					return true;
 				}
 
+				var previousPostInfo = getPostMoveInformation(previousPost, previousAnnotation);
+				var postInfo = getPostMoveInformation(post, annotation);
+
 				// Is the main post a valid reply?
-				if(!isValidReplyToPrevious(post, annotation))
+				if(!isValidMoveReply(previousPostInfo, postInfo))
 				{
 					return;
 				}
@@ -763,10 +780,26 @@
 					return api.getposts(post.id, true, o);
 				}, function(threadPost, threadAnnotation)
 				{
-					// Earlier valid move reply to previousPost
-					return (threadPost.reply_to == previousPost.id && threadPost.id < post.id && isValidReplyToPrevious(threadPost, threadAnnotation.value)) ||
-					// Move reply by current user in response to post
-					       (threadPost.user.username == authenticatedUsername && threadPost.reply_to == post.id && threadAnnotation.value.correspondence);
+					if(threadPost.reply_to == previousPost.id && threadPost.id < post.id)
+					{
+						var threadPostInfo = getPostMoveInformation(threadPost, threadAnnotation.value);
+						if(isValidMoveReply(previousPostInfo, threadPostInfo))
+						{
+							// Earlier valid move reply to previousPost (post is double move)
+							return true;
+						}
+					}
+					else if(threadPost.user.username == authenticatedUsername && threadPost.reply_to == post.id)
+					{
+						var threadPostInfo = getPostMoveInformation(threadPost, threadAnnotation.value);
+						if(isValidMoveReply(postInfo, threadPostInfo))
+						{
+							// Valid move reply by current user in response to post already
+							return true;
+						}
+					}
+
+					return false;
 				}, function(isMatch)
 				{
 					// isMatch true means either the opponent made an earlier valid move reply to previousPost (so this is a double move), or the current user already made the move after this.  Otherwise, it's valid.
