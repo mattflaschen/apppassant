@@ -551,21 +551,26 @@
 		var $createChallengeModal = $('#createChallengeModal');
 		var $createChallengeWhiteFirstPly = $('#createChallengeWhiteFirstPly');
 
-		function getWhiteChallengePgn()
+		function getWhiteChallengePly()
 		{
-			var pgn = $createChallengeWhiteFirstPly.val();
-			if(!/^1\./.test(pgn))
-			{
-				pgn = '1. ' + pgn;
-			}
-			return pgn;
+			var ply = $createChallengeWhiteFirstPly.val();
+			return ply;
 		}
 
-		var $createChallengeMessage = $('#createChallengeMessage');
+		var $createChallengeMessage = $('#createChallengeMessage'), $createChallengeModalError = $('#createChallengeModalError');
 
 		$('#previewChallengeBtn').click(function()
 		{
-			previewGame($('#createChallengeModalError'), $('#createChallengeBoard'), $createChallengeMessage, getWhiteChallengePgn());
+			var ply = getWhiteChallengePly();
+			if(ply)
+			{
+				var moveInfo = getGameAndMove('', ply);
+				displayIfIllegalPly($createChallengeModalError, moveInfo, ply);
+				if(moveInfo.move)
+				{
+					previewGame($('#createChallengeModalError'), $('#createChallengeBoard'), $createChallengeMessage, moveInfo.game.pgn());
+				}
+			}
 		});
 
 		var $createChallengePieces = $('#createChallengePieces');
@@ -584,7 +589,14 @@
 
 			if(myColor == 'white')
 			{
-				pgn = getWhiteChallengePgn();
+				var ply = getWhiteChallengePly();
+				var moveInfo = getGameAndMove('', ply);
+				displayIfIllegalPly($createChallengeModalError, moveInfo, ply);
+				if(!moveInfo.move)
+				{
+					$btn.button('reset');
+					return;
+				}
 			}
 			var annotationValue =
 			{
@@ -607,7 +619,10 @@
 					type: STANDARD_NAMESPACE,
 					value: annotationValue
 				}
-			]).always(function()
+			]).done(function()
+			{
+				$createChallengeModal.modal('hide');
+			}).always(function()
 			{
 				$btn.button('reset');
 			});
@@ -814,6 +829,17 @@
 
 		var $moveModal = $('#moveModal'), $movePly = $('#movePly'), $moveModalError = $('#moveModalError'), $moveBoard = $('#moveBoard'), $moveMessage = $('#moveMessage');
 
+		function stripMoveNumber(ply)
+		{
+			// Strip initial move number if entered (e.g. 5. Nf6 ->	Nf6)
+			var initialMoveNumberMatch = ply.match(/^\d+\.\s*(.*)/);
+			if(initialMoveNumberMatch)
+			{
+				ply = initialMoveNumberMatch[1];
+			}
+			return ply;
+		}
+
 		/*
 		 * Get game (chess.js object), and move (chess.js move object)
 		 *
@@ -824,12 +850,7 @@
 		 */
 		function getGameAndMove(oldPgn, ply)
 		{
-			// Strip initial move number if entered (e.g. 5. Nf6 ->	Nf6)
-			var initialMoveNumberMatch = ply.match(/^\d+\.\s*(.*)/);
-			if(initialMoveNumberMatch)
-			{
-				ply = initialMoveNumberMatch[1];
-			}
+			ply = stripMoveNumber(ply);
 
 			var game = new Chess();
 			game.load_pgn(oldPgn);
@@ -845,7 +866,7 @@
 		 * moveInfo - Return from getGameAndMove.
 		 * ply - ply entered by user
 		 */
-		function displayIfIllegal($errorDisplay, moveInfo, ply)
+		function displayIfIllegalPly($errorDisplay, moveInfo, ply)
 		{
 			var msg;
 			$errorDisplay.hide().text('');
@@ -872,7 +893,7 @@
 			if(ply)
 			{
 				var moveInfo = getGameAndMove(oldPgn, ply);
-				displayIfIllegal($moveModalError, moveInfo, ply);
+				displayIfIllegalPly($moveModalError, moveInfo, ply);
 				if(moveInfo.move)
 				{
 					pgn = moveInfo.game.pgn();
@@ -892,7 +913,7 @@
 			var annotation = $.extend(true, {}, $modal.data('annotation')); // Make a copy so we don't accumulate plies if the post fails.
 			var oldPgn = annotation.value.pgn;
 			var moveInfo = getGameAndMove(oldPgn, ply);
-			displayIfIllegal($moveModalError, moveInfo, ply);
+			displayIfIllegalPly($moveModalError, moveInfo, ply);
 
 			// Ply is valid
 			if(moveInfo.move)
