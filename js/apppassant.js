@@ -438,6 +438,16 @@
 
 			if(userInChallenge && posterInChallenge && notEqual && (posterPlaysAsBlack || isPgn))
 			{
+				if(!posterPlaysAsBlack)
+				{
+					var game = new Chess();
+					var isValid = game.load_pgn(annotation.pgn);
+					if(!isValid)
+					{
+						return;
+					}
+				}
+
 				// Check if current user has already accepted/rejected
 
 				// If there are no direct replies we don't have to check further.
