@@ -394,15 +394,34 @@
 			$('.game-post', this).empty();
 		});
 
+		var $postModalError = $('#postModalError');
+
 		$('#previewGameBtn').click(function()
 		{
-			previewGame($('#postModalError'), $('#postModalBoard'), $('#postModalMsg'), $('#postModalPgn').val());
+			var pgn = $('#postModalPgn').val();
+			var game = new Chess();
+			var isValid = game.load_pgn(pgn);
+			displayIfIllegalGame($postModalError, isValid);
+			if(isValid)
+			{
+				previewGame($postModalError, $('#postModalBoard'), $('#postModalMsg'), pgn);
+			}
 		});
 
 		$('#postGameBtn').click(function()
 		{
 			var $btn = $(this);
 			$btn.button('loading');
+			var $modal = $btn.parents('.modal');
+			var game = new Chess();
+			var pgn = $('#postModalPgn').val();
+			var isValid = game.load_pgn(pgn);
+			displayIfIllegalGame($postModalError, isValid);
+			if(!isValid)
+			{
+				$btn.button('reset');
+				return;
+			}
 			api.posts($('#postModalMsg').val(), null, true,
 			[
 				{
@@ -411,10 +430,13 @@
 					{
 						version: WRITE_VERSION,
 						is_active: $('#postModalBeingPlayed').is(':checked'),
-						pgn: $('#postModalPgn').val()
+						pgn: pgn
 					}
 				}
-			]).always(function()
+			]).done(function()
+			{
+				$modal.modal('hide');
+			}).always(function()
 			{
 				$btn.button('reset');
 			});
@@ -888,6 +910,15 @@
 					msg += ' You must move out of check.';
 				}
 				$errorDisplay.text(msg).show();
+			}
+		}
+
+		function displayIfIllegalGame($errorDisplay, isValid)
+		{
+			$errorDisplay.hide().text('');
+			if(!isValid)
+			{
+				$errorDisplay.text('The PGN could not be parsed as a valid game.  Please check it and try again.').show();
 			}
 		}
 
