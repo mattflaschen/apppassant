@@ -917,7 +917,9 @@
 
 		$('#moveBtn').click(function()
 		{
-			var $modal = $(this).parents('.modal');
+			var $btn = $(this);
+			$btn.button('loading');
+			var $modal = $btn.parents('.modal');
 			var previousPost = $modal.data('previousPost');
 			var ply = $movePly.val();
 			var annotation = $.extend(true, {}, $modal.data('annotation')); // Make a copy so we don't accumulate plies if the post fails.
@@ -941,6 +943,10 @@
 				{
 					$btn.button('reset');
 				});
+			}
+			else
+			{
+				$btn.button('reset');
 			}
 		});
 
