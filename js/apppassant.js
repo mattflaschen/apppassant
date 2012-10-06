@@ -409,6 +409,7 @@
 			displayIfIllegalGame($postModalError, isValid);
 			if(isValid)
 			{
+				setResult(game);
 				previewGame($postModalError, $('#postModalBoard'), $('#postModalMsg'), pgn);
 			}
 		});
@@ -427,17 +428,26 @@
 				$btn.button('reset');
 				return;
 			}
+			var annotation =
+			{
+				type: STANDARD_NAMESPACE,
+				value:
+				{
+					version: WRITE_VERSION,
+					result: '*',
+					pgn: pgn
+				}
+			};
+			setResult(game);
+			var result = game.header().Result;
+			if(result)
+			{
+				annotation.value.result = result;
+			}
+
 			api.posts($('#postModalMsg').val(), null, true,
 			[
-				{
-					type: STANDARD_NAMESPACE,
-					value:
-					{
-						version: WRITE_VERSION,
-						is_active: $('#postModalBeingPlayed').is(':checked'),
-						pgn: pgn
-					}
-				}
+				annotation
 			]).done(function()
 			{
 				$modal.modal('hide');
@@ -877,10 +887,38 @@
 			return ply;
 		}
 
+		// Sets result if game is over.
+		function setResult(game)
+		{
+			var result;
+			if(game.in_checkmate())
+			{
+				// turn swaps every move, so if it's white's 'turn', black just won.
+				if(game.turn() == 'w')
+				{
+					result = '0-1';
+				}
+				else
+				{
+					result = '1-0';
+				}
+			}
+			else if(game.in_stalemate() || game.insufficient_material())
+			{
+				result = '1/2-1/2';
+			}
+			if(result)
+			{
+				game.header('Result', result);
+			}
+		}
+
 		/*
 		 * Get game (chess.js object), and move (chess.js move object)
 		 *
 		 * The game will include the latest move if it's valid.  Otherwise, it will be the game corresponding to the old PGN.
+		 *
+		 * This also sets the Result if the game has ended (this does not include claimed draws).  This part may be refactored out to chess.js later.
 		 *
 		 * oldPgn - prior PGN
 		 * ply - user-entered ply
@@ -908,6 +946,12 @@
 					}
 				}
 			}
+
+			if(move)
+			{
+				setResult(game);
+			}
+
 			return {
 				game: game,
 				move: move
@@ -984,6 +1028,11 @@
 			{
 				var msg = $moveMessage.val();
 				msg = addMention(msg, previousPost.user.username);
+				var result = moveInfo.game.header().Result;
+				if(result)
+				{
+					annotation.value.result = result;
+				}
 				annotation.value.pgn = moveInfo.game.pgn();
 				api.posts(msg, previousPost.id, true,
 				[
