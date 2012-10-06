@@ -892,6 +892,22 @@
 			var game = new Chess();
 			game.load_pgn(oldPgn);
 			var move = game.move(ply);
+			if(!move)
+			{
+				// Add on potential missing # or + so SAN will be valid.
+				var plyRegex = new RegExp('^' + ply + '[+#]$');
+				var moves = game.moves();
+				for(var i = 0; i < moves.length; i++)
+				{
+					var match = moves[i].match(plyRegex);
+					if(match)
+					{
+						ply = match[0];
+						move = game.move(ply);
+						break;
+					}
+				}
+			}
 			return {
 				game: game,
 				move: move
