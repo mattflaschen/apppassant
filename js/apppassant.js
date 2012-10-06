@@ -663,6 +663,7 @@
 			{
 				opponent = opponent.substr(1);
 			}
+			opponent = $.trim(opponent);
 			annotationValue.correspondence[otherColor] = opponent;
 			var msg = $createChallengeMessage.val();
 			msg = addMention(msg, opponent);
