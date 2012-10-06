@@ -19,7 +19,7 @@
 
 	var FETCH_POSTS_MAX_COUNT = 2000;
 
-	var authenticatedUsername, authenticatedName;
+	var authenticatedUsername, authenticatedName, authenticatedUserType;
 
 	jQuery.support.cors = true;
 
@@ -367,8 +367,13 @@
 		{
 			authenticatedUsername = env.data.username;
 			authenticatedName = env.data.name;
+			authenticatedUserType = env.data.type;
+			loadTabs();
 		});
+	});
 
+	function loadTabs()
+	{
 		$('.adn-message').attr('maxlength', 256);
 
 		function isGame(post, annotation, validCallback)
