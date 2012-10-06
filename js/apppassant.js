@@ -151,7 +151,7 @@
 			$this.html($('<a />', {href: 'http://appeio.com/' + mention, text: $this.text()}));
 		});
 
-		var $pgn = $('<p/>', {'class': 'pgn', text: pgn});
+		var $pgn = $('<p/>', {'class': 'pgn', html: pgn.replace(/\n/g, '<br>')});
 
 		$boardControlHolder.empty().append($boardHolder, $controlHolder, $annotation, $pgn, $poster, $msg);
 		if(buttons)
