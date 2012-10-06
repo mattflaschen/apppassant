@@ -43,6 +43,7 @@
 
 	function renderGamePost($boardControlHolder, posterUsername, html, pgn, viewAsBlack, post, annotation, buttons)
 	{
+		pgn = pgn || '';
 		$boardControlHolder.addClass('game-post');
 		if(post !== undefined)
 		{
