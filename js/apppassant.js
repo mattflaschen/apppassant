@@ -375,7 +375,12 @@
 		{
 			if(annotation.value.pgn)
 			{
-				validCallback();
+				var game = new Chess();
+				var isValid = game.load_pgn(annotation.value.pgn);
+				if(isValid)
+				{
+					validCallback();
+				}
 			}
 		}
 
