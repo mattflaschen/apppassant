@@ -649,6 +649,7 @@
 					$btn.button('reset');
 					return;
 				}
+				pgn = moveInfo.game.pgn();
 			}
 			var annotationValue =
 			{
