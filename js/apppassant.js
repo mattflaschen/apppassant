@@ -41,7 +41,7 @@
 
 	var boardCounter = 0;
 
-	function renderGamePost($boardControlHolder, posterUsername, html, pgn, viewAsBlack, post, annotation, buttons)
+	function renderGamePost($boardControlHolder, posterUsername, html, showPgn, pgn, viewAsBlack, post, annotation, buttons)
 	{
 		pgn = pgn || '';
 		$boardControlHolder.addClass('game-post');
@@ -152,9 +152,14 @@
 			$this.html($('<a />', {href: 'http://appeio.com/' + mention, text: $this.text()}));
 		});
 
-		var $pgn = $('<p/>', {'class': 'pgn', html: pgn.replace(/\n/g, '<br>')});
 
-		$boardControlHolder.empty().append($boardHolder, $controlHolder, $annotation, $pgn, $poster, $msg);
+		$boardControlHolder.empty().append($boardHolder, $controlHolder, $annotation);
+		if(showPgn)
+		{
+			var $pgn = $('<p/>', {'class': 'pgn', html: pgn.replace(/\n/g, '<br>')});
+			$boardControlHolder.append($pgn);
+		}
+		$boardControlHolder.append($poster, $msg);
 		if(buttons)
 		{
 			var $buttons = $('<div />');
@@ -192,7 +197,7 @@
 
 		try
 		{
-			renderGamePost($board, authenticatedUsername, $msg.val(), pgn, viewAsBlack);
+			renderGamePost($board, authenticatedUsername, $msg.val(), false, pgn, viewAsBlack);
 		}
 		catch(e)
 		{
@@ -287,7 +292,7 @@
 						{
 							viewAsBlack = true;
 						}
-						renderGamePost($post, post.user.username, post.html, annotation.value.pgn, viewAsBlack, post, annotation, mapping.buttons);
+						renderGamePost($post, post.user.username, post.html, true, annotation.value.pgn, viewAsBlack, post, annotation, mapping.buttons);
 					}
 					catch(e)
 					{
