@@ -176,8 +176,20 @@
 	}
 
 	// Preview when posting PGN
-	function previewGame($errorDisplay, $board, $msg, pgn, viewAsBlack)
+	function previewGame($errorDisplay, $board, $msg, game, pgn, viewAsBlack)
 	{
+		if(game.move_number() == 1 && game.turn() == 'w')
+		{
+			// jchess does not handle non-empty PGN without moves (e.g. only headers and termination) correctly.
+			pgn = '';
+		}
+
+		// It's better to pass it in when possible, so we don't have to re-serialize something we already have.
+		if(typeof pgn == 'undefined')
+		{
+			pgn = game.pgn();
+		}
+
 		try
 		{
 			renderGamePost($board, authenticatedUsername, $msg.val(), pgn, viewAsBlack);
@@ -330,6 +342,97 @@
 		return msg;
 	}
 
+	function getPGNName(username, name)
+	{
+		var nameRegex = /^(.+)\s(\S+)$/;
+		var userMatch = name.match(nameRegex);
+		var pgnName;
+		if(userMatch)
+		{
+			pgnName = userMatch[2] + ', ' + userMatch[1];
+		}
+		else
+		{
+			pgnName = name;
+		}
+		pgnName += ' (' + username + ')';
+		return pgnName;
+	}
+
+	function getPGNType(type)
+	{
+		if(type == 'bot')
+		{
+			return 'program';
+		}
+		else
+		{
+			return type;
+		}
+	}
+
+	function getPaddedToTwo(number)
+	{
+		if(number < 10)
+		{
+			number = '0' + number;
+		}
+		return number;
+	}
+
+	function addPGNHeaders(game, opponent, annotationValue)
+	{
+		var playerInfo =
+		{
+			white:
+			{
+				username: annotationValue.correspondence.white
+			},
+			black:
+			{
+				username: annotationValue.correspondence.black
+			}
+		};
+		if(playerInfo.white.username == authenticatedUsername)
+		{
+			playerInfo.white.name = authenticatedName;
+			playerInfo.white.type = getPGNType(authenticatedUserType);
+			playerInfo.black.name = opponent.name;
+			playerInfo.black.type = getPGNType(opponent.type);
+		}
+		else
+		{
+			playerInfo.black.name = authenticatedName;
+			playerInfo.black.type = getPGNType(authenticatedUserType);
+			playerInfo.white.name = opponent.name;
+			playerInfo.white.type = getPGNType(opponent.type);
+		}
+		playerInfo.white.pgnName = getPGNName(playerInfo.white.username, playerInfo.white.name);
+		playerInfo.black.pgnName = getPGNName(playerInfo.black.username, playerInfo.black.name);
+		var date = new Date();
+		var year = date.getUTCFullYear();
+		var month = getPaddedToTwo(date.getUTCMonth() + 1);
+		var dateOfMonth = getPaddedToTwo(date.getUTCDate());
+		var dateString = year + '.' + month + '.' + dateOfMonth;
+		var hours = getPaddedToTwo(date.getUTCHours());
+		var minutes = getPaddedToTwo(date.getUTCMinutes());
+		var seconds = getPaddedToTwo(date.getUTCSeconds());
+		var time = hours + ':' + minutes + ':' + seconds;
+		game.header('Event', 'App Passant Correspondence Game',
+			    'Site', 'App Passant (http://apppassant.com/) / app.net',
+			    'Date', dateString,
+			    'Round', '-',
+			    'White', playerInfo.white.pgnName,
+			    'Black', playerInfo.black.pgnName,
+			    'Result', '*',
+			    'UTCDate', date,
+			    'UTCTime', time,
+			    'WhiteType', playerInfo.white.type,
+			    'BlackType', playerInfo.black.type,
+			    'TimeControl', '-'
+		);
+	}
+
 	$(function()
 	{
 		$('#throbber').ajaxStart(function()
@@ -416,7 +519,7 @@
 			if(isValid)
 			{
 				setResult(game);
-				previewGame($postModalError, $('#postModalBoard'), $('#postModalMsg'), pgn);
+				previewGame($postModalError, $('#postModalBoard'), $('#postModalMsg'), game, pgn);
 			}
 		});
 
@@ -542,8 +645,11 @@
 		{
 			var data = getGameData(this);
 			var moveAnnotation = data.annotation;
-			moveAnnotation.value.result = '*';
 			moveAnnotation.value.correspondence.challenge_post_id = data.post.id;
+			var game = new Chess();
+			game.load_pgn(moveAnnotation.value.pgn || '');
+			addPGNHeaders(game, data.post.user, moveAnnotation.value);
+			moveAnnotation.value.pgn = game.pgn();
 			openMove(data.post, moveAnnotation);
 		}
 
@@ -621,7 +727,7 @@
 				displayIfIllegalPly($createChallengeModalError, moveInfo, ply);
 				if(moveInfo.move)
 				{
-					previewGame($('#createChallengeModalError'), $('#createChallengeBoard'), $createChallengeMessage, moveInfo.game.pgn());
+					previewGame($('#createChallengeModalError'), $('#createChallengeBoard'), $createChallengeMessage, moveInfo.game);
 				}
 			}
 		});
@@ -998,23 +1104,17 @@
 		function previewMove()
 		{
 			var annotationValue = $moveModal.data('annotation').value;
-			var oldPgn = annotationValue.pgn;
-			// Default to showing old PGN, or blank, unless a valid ply is entered.
-			var pgn = oldPgn || '';
 			var ply = $movePly.val();
 			var playAsBlack = annotationValue.correspondence.black == authenticatedUsername;
 
+			// Defaults to showing old PGN, unless a valid ply is entered.
+			var moveInfo = getGameAndMove(annotationValue.pgn, ply);
 			if(ply)
 			{
-				var moveInfo = getGameAndMove(oldPgn, ply);
 				displayIfIllegalPly($moveModalError, moveInfo, ply);
-				if(moveInfo.move)
-				{
-					pgn = moveInfo.game.pgn();
-				}
 			}
 
-			previewGame($moveModalError, $moveBoard, $moveMessage, pgn, playAsBlack);
+			previewGame($moveModalError, $moveBoard, $moveMessage, moveInfo.game, undefined, playAsBlack);
 		}
 
 		$('#previewMoveBtn').click(previewMove);
