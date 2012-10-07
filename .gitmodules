@@ -1,3 +1,6 @@
 [submodule "js/chess.js"]
 	path = js/chess.js
 	url = git://github.com/mattflaschen/chess.js.git
+[submodule "jchess"]
+	path = jchess
+	url = git://github.com/mattflaschen/jchess.git
