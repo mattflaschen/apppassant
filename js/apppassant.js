@@ -430,7 +430,7 @@
 			    'White', playerInfo.white.pgnName,
 			    'Black', playerInfo.black.pgnName,
 			    'Result', '*',
-			    'UTCDate', date,
+			    'UTCDate', dateString,
 			    'UTCTime', time,
 			    'WhiteType', playerInfo.white.type,
 			    'BlackType', playerInfo.black.type,
