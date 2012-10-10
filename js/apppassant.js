@@ -41,6 +41,34 @@
 
 	var boardCounter = 0;
 
+	function getPaddedToTwo(number)
+	{
+		if(number < 10)
+		{
+			number = '0' + number;
+		}
+		return number;
+	}
+
+	function getDateString(date, delimiter, useUTC)
+	{
+		var year = useUTC ? date.getUTCFullYear() : date.getFullYear();
+		var rawMonth = useUTC ? date.getUTCMonth() : date.getMonth();
+		var month = getPaddedToTwo(rawMonth + 1);
+		var dateOfMonth = getPaddedToTwo(useUTC ? date.getUTCDate() : date.getDate());
+		var dateString = year + delimiter + month + delimiter + dateOfMonth;
+		return dateString;
+	}
+
+	function getTimeString(date, useUTC)
+	{
+		var hours = getPaddedToTwo(useUTC ? date.getUTCHours() : date.getHours());
+		var minutes = getPaddedToTwo(useUTC ? date.getUTCMinutes() : date.getMinutes());
+		var seconds = getPaddedToTwo(useUTC ? date.getUTCSeconds() : date.getSeconds());
+		var time = hours + ':' + minutes + ':' + seconds;
+		return time;
+	}
+
 	function renderGamePost($boardControlHolder, posterUsername, html, showPgn, pgn, viewAsBlack, post, annotation, buttons)
 	{
 		pgn = pgn || '';
@@ -133,9 +161,16 @@
 		});
 		var $controlHolder = $('<div />', {'class': 'controls'}).append(controls);
 
-		var $poster = $('<span />', {'class': 'poster'});
-		var $posterLink = $('<a />', {href: 'http://appeio.com/' + posterUsername, text: '@' + posterUsername + ':'});
-		$poster.append($posterLink);
+		var $byline = $('<span />');
+		var $posterLink = $('<a />', {'class': 'poster', href: 'http://appeio.com/' + posterUsername, text: '@' + posterUsername});
+		var date = new Date();
+		if(post)
+		{
+			date.setTime(Date.parse(post.created_at));
+		}
+		var dateString = getDateString(date, '-', false);
+		var timeString = getTimeString(date, false);
+		$byline.append($posterLink, ' at ' + dateString + ' ' + timeString);
 
 		var $msg = $('<p/>', {html: html});
 		$('span[itemprop=hashtag]', $msg).each(function()
@@ -159,7 +194,7 @@
 			var $pgn = $('<p/>', {'class': 'pgn', html: pgn.replace(/\n/g, '<br>')});
 			$boardControlHolder.append($pgn);
 		}
-		$boardControlHolder.append($poster, $msg);
+		$boardControlHolder.append($byline, $msg);
 		if(buttons)
 		{
 			var $buttons = $('<div />');
@@ -376,15 +411,6 @@
 		}
 	}
 
-	function getPaddedToTwo(number)
-	{
-		if(number < 10)
-		{
-			number = '0' + number;
-		}
-		return number;
-	}
-
 	function addPGNHeaders(game, opponent, annotationValue)
 	{
 		var playerInfo =
@@ -415,14 +441,8 @@
 		playerInfo.white.pgnName = getPGNName(playerInfo.white.username, playerInfo.white.name);
 		playerInfo.black.pgnName = getPGNName(playerInfo.black.username, playerInfo.black.name);
 		var date = new Date();
-		var year = date.getUTCFullYear();
-		var month = getPaddedToTwo(date.getUTCMonth() + 1);
-		var dateOfMonth = getPaddedToTwo(date.getUTCDate());
-		var dateString = year + '.' + month + '.' + dateOfMonth;
-		var hours = getPaddedToTwo(date.getUTCHours());
-		var minutes = getPaddedToTwo(date.getUTCMinutes());
-		var seconds = getPaddedToTwo(date.getUTCSeconds());
-		var time = hours + ':' + minutes + ':' + seconds;
+		var dateString = getDateString(date, '.', true);
+		var time = getTimeString(date, true);
 		game.header('Event', 'App Passant Correspondence Game',
 			    'Site', 'App Passant (http://apppassant.com/) / app.net',
 			    'Date', dateString,
