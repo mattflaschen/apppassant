@@ -4,3 +4,6 @@
 [submodule "jchess"]
 	path = jchess
 	url = git://github.com/mattflaschen/jchess.git
+[submodule "js/js-iso8601"]
+	path = js/js-iso8601
+	url = git://github.com/csnover/js-iso8601.git
