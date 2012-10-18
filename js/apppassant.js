@@ -652,15 +652,17 @@
 		{
 			var $gamePost = $(btn).parents('.game-post');
 			var data = $.extend(true, {}, $gamePost.data());
+			data['$gamePost'] = $gamePost;
 			return data;
 		}
 
 		// Open move modal
-		function openMove(post, annotation)
+		function openMove(post, annotation, $gamePost)
 		{
 			annotation.type = STANDARD_NAMESPACE;
 			$moveModal.data('previousPost', post);
 			$moveModal.data('annotation', annotation);
+			$moveModal.data('$gamePost', $gamePost);
 			$moveModal.modal();
 			previewMove();
 		}
@@ -675,13 +677,13 @@
 			game.load_pgn(moveAnnotation.value.pgn || '');
 			addPGNHeaders(game, data.post.user, moveAnnotation.value);
 			moveAnnotation.value.pgn = game.pgn();
-			openMove(data.post, moveAnnotation);
+			openMove(data.post, moveAnnotation, data['$gamePost']);
 		}
 
 		function openMoveFromReadyGame()
 		{
 			var data = getGameData(this);
-			openMove(data.post, data.annotation);
+			openMove(data.post, data.annotation, data['$gamePost']);
 		}
 
 		function openRejectChallenge()
@@ -1172,6 +1174,8 @@
 					annotation
 				]).done(function()
 				{
+					var $gamePost = $modal.data('$gamePost');
+					$gamePost.remove();
 					$modal.modal('hide');
 				}).always(function()
 				{
