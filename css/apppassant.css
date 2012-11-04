@@ -42,6 +42,11 @@ body
     font-weight: bold;
 }
 
+.date-link, .date-link:hover
+{
+    color: inherit;
+}
+
 #postGameModal
 {
     top: 35%;

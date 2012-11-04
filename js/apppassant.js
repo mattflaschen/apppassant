@@ -170,7 +170,17 @@
 		}
 		var dateString = getDateString(date, '-', false);
 		var timeString = getTimeString(date, false);
-		$byline.append($posterLink, ' at ' + dateString + ' ' + timeString);
+		var dateTimeString = 'at ' + dateString + ' ' + timeString;
+		var dateTime;
+		if(post)
+		{
+			dateTime = $('<a />', {'class': 'date-link', href: 'http://treeview.simon.geek.nz/home/thread/' + post.id + '#a' + post.id, text: dateTimeString});
+		}
+		else
+		{
+			dateTime = dateTimeString;
+		}
+		$byline.append($posterLink, ' ', dateTime);
 
 		var $msg = $('<p/>', {html: html});
 		$('span[itemprop=hashtag]', $msg).each(function()
