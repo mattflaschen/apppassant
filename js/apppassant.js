@@ -162,7 +162,7 @@
 		var $controlHolder = $('<div />', {'class': 'controls'}).append(controls);
 
 		var $byline = $('<span />');
-		var $posterLink = $('<a />', {'class': 'poster', href: 'http://appeio.com/' + posterUsername, text: '@' + posterUsername});
+		var $posterLink = $('<a />', {'class': 'poster', href: 'http://app.noodletalk.org/user/' + posterUsername, text: '@' + posterUsername});
 		var date = new Date();
 		if(post)
 		{
@@ -184,7 +184,7 @@
 		{
 			var $this = $(this);
 			var mention = $this.data('mention-name');
-			$this.html($('<a />', {href: 'http://appeio.com/' + mention, text: $this.text()}));
+			$this.html($('<a />', {href: 'http://app.noodletalk.org/user/' + mention, text: $this.text()}));
 		});
 
 
