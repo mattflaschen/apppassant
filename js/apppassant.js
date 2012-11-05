@@ -226,7 +226,7 @@
 	}
 
 	// Preview when posting PGN
-	function previewGame($errorDisplay, $board, $msg, game, pgn, viewAsBlack)
+	function previewGame($errorDisplay, $board, msg, game, pgn, viewAsBlack)
 	{
 		if(game.move_number() == 1 && game.turn() == 'w')
 		{
@@ -242,7 +242,7 @@
 
 		try
 		{
-			renderGamePost($board, authenticatedUsername, $msg.val(), false, pgn, viewAsBlack);
+			renderGamePost($board, authenticatedUsername, msg, false, pgn, viewAsBlack);
 		}
 		catch(e)
 		{
@@ -554,7 +554,7 @@
 			if(isValid)
 			{
 				setResult(game);
-				previewGame($postModalError, $('#postModalBoard'), $('#postModalMsg'), game, pgn);
+				previewGame($postModalError, $('#postModalBoard'), $('#postModalMsg').val(), game, pgn);
 			}
 		});
 
@@ -764,7 +764,7 @@
 				displayIfIllegalPly($createChallengeModalError, moveInfo, ply);
 				if(moveInfo.move)
 				{
-					previewGame($('#createChallengeModalError'), $('#createChallengeBoard'), $createChallengeMessage, moveInfo.game);
+					previewGame($('#createChallengeModalError'), $('#createChallengeBoard'), $createChallengeMessage.val(), moveInfo.game);
 				}
 			}
 		});
@@ -1065,7 +1065,7 @@
 		}
 
 		/*
-		 * Get game (chess.js object), and move (chess.js move object)
+		 * Get game (chess.js object), move (chess.js move object), and ply (canonicalized text ply)
 		 *
 		 * The game will include the latest move if it's valid.  Otherwise, it will be the game corresponding to the old PGN.
 		 *
@@ -1105,7 +1105,8 @@
 
 			return {
 				game: game,
-				move: move
+				move: move,
+				ply: ply
 			};
 		}
 
@@ -1138,6 +1139,17 @@
 			}
 		}
 
+		function getMoveMessage($moveMessage, moveInfo, previousPost)
+		{
+			var msg = $moveMessage.val();
+			if(msg === '')
+			{
+				msg = moveInfo.ply;
+			}
+			msg = addMention(msg, previousPost.user.username);
+			return msg;
+		}
+
 		function previewMove()
 		{
 			var annotationValue = $moveModal.data('annotation').value;
@@ -1151,7 +1163,8 @@
 				displayIfIllegalPly($moveModalError, moveInfo, ply);
 			}
 
-			previewGame($moveModalError, $moveBoard, $moveMessage, moveInfo.game, undefined, playAsBlack);
+			var msg = getMoveMessage($moveMessage, moveInfo, $moveModal.data('previousPost'));
+			previewGame($moveModalError, $moveBoard, msg, moveInfo.game, undefined, playAsBlack);
 		}
 
 		$('#previewMoveBtn').click(previewMove);
@@ -1171,8 +1184,7 @@
 			// Ply is valid
 			if(moveInfo.move)
 			{
-				var msg = $moveMessage.val();
-				msg = addMention(msg, previousPost.user.username);
+				var msg = getMoveMessage($moveMessage, moveInfo, previousPost);
 				var result = moveInfo.game.header().Result;
 				if(result)
 				{
