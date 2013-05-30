@@ -86,8 +86,12 @@ window.APPDOTNET = (function () {
             return $.ajax(ajax_options);
         },
 
+        get_user_id: function (user_id) {
+            return user_id || 'me';
+        },
+
         users: function (user_id) {
-            user_id = user_id || 'me';
+            user_id = this.get_user_id(user_id);
             var options = {
                 type: 'GET'
             };
@@ -97,13 +101,26 @@ window.APPDOTNET = (function () {
             return this.request(url, options);
         },
 
-        mentions: function (user_id) {
-            user_id = user_id || 'me';
+        mentions: function (user_id, params) {
+            user_id = this.get_user_id(user_id);
             var options = {
-                type: 'GET'
+                type: 'GET',
+                data: params
             };
 
             var url = 'users/' + user_id + '/mentions';
+
+            return this.request(url, options);
+        },
+
+        get_user_posts: function (user_id, params) {
+            user_id = this.get_user_id(user_id);
+            var options = {
+                type: 'GET',
+                data: params
+            };
+
+            var url = 'users/' + user_id + '/posts';
 
             return this.request(url, options);
         },
@@ -140,18 +157,16 @@ window.APPDOTNET = (function () {
 	    return this.request(url, options, use_json);
         },
 
-        getposts: function (post_id, include_replies, before_id, include_annotations) {
-            var parameters = {};
-	    var url = 'posts/' + post_id;
-	    parameters.include_annotations = include_annotations;
+        getposts: function (post_id, include_replies, params) {
+            var options = {
+                type: 'GET',
+                data: params
+            };
+            var url = 'posts/' + post_id;
             if (include_replies) {
                 url = url + '/replies';
-                parameters.count = 200;
-                if (arguments.length >= 3 && !isNaN(before_id)) {
-                    parameters.before_id = before_id;
-                }
             }
-            return this.get(url, parameters);
+            return this.request(url, options);
         },
 
         delete_post: function (post_id) {
